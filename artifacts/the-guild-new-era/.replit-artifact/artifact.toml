@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "The Guild: New Era"
+description = "Адаптивный технический прототип 2D–2.5D средневекового города на React, TypeScript, Vite и Phaser 3. Персонаж перемещается по тайловой карте, подходит к зданиям и открывает тестовые окна взаимодействия на телефоне и ПК."
+version = "1.0.0"
+id = "artifacts/the-guild-new-era"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23248
+
+[services.development]
+run = "pnpm --filter @workspace/the-guild-new-era run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/the-guild-new-era", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/the-guild-new-era/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23248"
+BASE_PATH = "/"
