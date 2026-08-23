@@ -82,12 +82,12 @@ export function GameUI({
           </div>
         </div>
         <div className="flex items-center gap-2 rounded-2xl border border-[#d2c59b] bg-[#f5edcf]/95 p-1.5 shadow-[var(--shadow-panel)] backdrop-blur md:gap-3 md:px-3">
-          <div className="hidden items-center gap-1.5 border-r border-[#d8cda8] px-2 text-right sm:flex">
+          <div className="flex items-center gap-1.5 border-r border-[#d8cda8] px-1.5 text-right md:px-2">
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-widest text-[#88775e]">Золото</div>
-              <div data-testid="text-gold" className="font-mono text-sm font-bold text-[#8e5e20]">{gold} <span className="text-[10px] font-normal">лв</span></div>
+              <div className="hidden font-mono text-[9px] uppercase tracking-widest text-[#88775e] md:block">Золото</div>
+              <div data-testid="text-gold" className="whitespace-nowrap font-mono text-xs font-bold text-[#8e5e20] md:text-sm">💰 {gold}</div>
             </div>
-            <Coins size={16} className="text-[#b88730]" />
+            <Coins size={15} className="hidden text-[#b88730] md:block" />
           </div>
           <div className="flex items-center gap-2 px-1.5">
             <Heart size={15} className="fill-[#a84a3f] text-[#a84a3f]" />

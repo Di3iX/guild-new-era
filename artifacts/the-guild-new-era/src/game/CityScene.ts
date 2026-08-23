@@ -24,6 +24,7 @@ export class CityScene extends Phaser.Scene {
   private buildingLayer!: Phaser.GameObjects.Container;
   private playerShadow!: Phaser.GameObjects.Ellipse;
   private pointerMarker?: Phaser.GameObjects.Ellipse;
+  private walkClock = 0;
 
   constructor(callbacks: GameCallbacks) {
     super({ key: 'CityScene' });
@@ -68,7 +69,7 @@ export class CityScene extends Phaser.Scene {
       this.callbacks.onInteractableChange(null);
       this.playerPoint.x = Phaser.Math.Clamp(this.playerPoint.x + direction.x * delta * 0.004, 1, CITY_WIDTH - 1);
       this.playerPoint.y = Phaser.Math.Clamp(this.playerPoint.y + direction.y * delta * 0.004, 1, CITY_HEIGHT - 1);
-      this.paintPlayer();
+      this.paintPlayer(true, delta);
       this.emitPosition();
       return;
     }
@@ -80,16 +81,17 @@ export class CityScene extends Phaser.Scene {
     if (distance <= step) {
       this.playerPoint = { ...this.targetPoint };
       this.targetPoint = null;
-      this.paintPlayer();
+      this.paintPlayer(false, delta);
       this.emitPosition();
       if (this.focusedBuilding && distance < 0.4) {
+        this.callbacks.onBuildingFocused(this.focusedBuilding);
         this.callbacks.onInteractableChange(this.focusedBuilding);
       }
       return;
     }
     this.playerPoint.x += (dx / distance) * step;
     this.playerPoint.y += (dy / distance) * step;
-    this.paintPlayer();
+    this.paintPlayer(true, delta);
     this.emitPosition();
   }
 
@@ -238,7 +240,9 @@ export class CityScene extends Phaser.Scene {
 
   private focusBuilding(building: BuildingData) {
     this.focusedBuilding = building;
-    this.callbacks.onBuildingFocused(building);
+    // Keep the building as a pending destination. React must not reveal
+    // the building panel until the player has actually reached the entrance.
+    this.callbacks.onBuildingFocused(null);
     this.callbacks.onInteractableChange(null);
     this.moveTo(building.approach);
   }
@@ -251,9 +255,16 @@ export class CityScene extends Phaser.Scene {
     this.pointerMarker.setDepth(p.y - 2);
   }
 
-  private paintPlayer() {
+  private paintPlayer(isMoving = false, delta = 0) {
     const p = this.mapToWorld(this.playerPoint);
-    this.player.setPosition(p.x, p.y - 10).setDepth(p.y + 30);
+    if (isMoving) {
+      this.walkClock += delta * 0.014;
+    } else {
+      this.walkClock = 0;
+    }
+    const bob = isMoving ? Math.sin(this.walkClock) * 2.2 : 0;
+    const sway = isMoving ? 1 + Math.sin(this.walkClock * 1.7) * 0.025 : 1;
+    this.player.setPosition(p.x, p.y - 10 - bob).setDepth(p.y + 30).setScale(sway, 1);
     this.playerShadow.setPosition(p.x, p.y + 13).setDepth(p.y + 10);
   }
 
