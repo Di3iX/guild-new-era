@@ -1,10 +1,28 @@
 import type { InventoryItems, ItemId } from '@/types/items';
 
-/** Simple inventory store (no external dependencies). */
-
 type Listener = () => void;
 
-let items: InventoryItems = {};
+const STORAGE_KEY = 'guild-inventory';
+
+function load(): InventoryItems {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as InventoryItems;
+  } catch {
+    return {};
+  }
+}
+
+function save(items: InventoryItems) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
+let items: InventoryItems = load();
 const listeners = new Set<Listener>();
 
 function emit() {
@@ -12,38 +30,33 @@ function emit() {
 }
 
 export const inventoryStore = {
-  /** Subscribe to changes (for React) */
   subscribe(listener: Listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
 
-  /** Get current snapshot */
   getSnapshot(): InventoryItems {
     return items;
   },
 
-  /** Get amount of a specific item */
   getAmount(id: ItemId): number {
     return items[id] ?? 0;
   },
 
-  /** Check if player has at least `amount` of item */
   has(id: ItemId, amount = 1): boolean {
     return this.getAmount(id) >= amount;
   },
 
-  /** Add items */
   add(id: ItemId, amount: number) {
     if (amount <= 0) return;
     items = {
       ...items,
       [id]: (items[id] ?? 0) + amount,
     };
+    save(items);
     emit();
   },
 
-  /** Remove items. Returns true if successful. */
   remove(id: ItemId, amount: number): boolean {
     if (amount <= 0) return true;
     const current = items[id] ?? 0;
@@ -56,19 +69,20 @@ export const inventoryStore = {
     } else {
       items = { ...items, [id]: next };
     }
+    save(items);
     emit();
     return true;
   },
 
-  /** Set full inventory (useful for loading save) */
   setItems(next: InventoryItems) {
     items = { ...next };
+    save(items);
     emit();
   },
 
-  /** Clear everything */
   clear() {
     items = {};
+    save(items);
     emit();
   },
 };
