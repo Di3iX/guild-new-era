@@ -539,6 +539,40 @@ export function BuildingCard(props: BuildingCardProps) {
                               onClick={() => handleSell(itemId, amount)}
                               className="flex-1 rounded-lg bg-[#36564b] px-2 py-2 text-xs font-bold text-[#f5edcf]"
                             >
-                              Все ({amount})
+Все ({amount})
                             </button>
-                          </
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {selectedBuilding.type !== 'mine' &&
+            selectedBuilding.type !== 'forge' &&
+            selectedBuilding.type !== 'market' &&
+            isAtBuilding && (
+              <div className="mt-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => onSpendGold(0)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1]"
+                >
+                  Провести осмотр <ArrowUpRight size={16} />
+                </button>
+              </div>
+            )}
+
+          {!isAtBuilding && (
+            <div className="mt-4 rounded-xl border border-dashed border-[#cdbd91] bg-[#eee3bf]/70 px-3 py-2.5 text-xs text-[#75654c]">
+              Маршрут проложен. Подойди ближе, чтобы открыть действия.
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+}
