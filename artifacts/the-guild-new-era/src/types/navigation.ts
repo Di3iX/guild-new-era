@@ -1,0 +1,1 @@
+export type NavKey = 'character' | 'city' | 'business' | 'market' | 'family';

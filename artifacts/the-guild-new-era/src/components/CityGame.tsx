@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useCityGame } from '@/game/useCityGame';
-import type { BuildingData, GameCallbacks, MapPoint } from '@/game/types';
+import { useCityGame } from '@/hooks/useCityGame';
+import type { GameActions } from '@/types/game';
+import type { GameEventHandlers } from '@/events/gameEvents';
 
-interface CityGameProps extends GameCallbacks {
-  onGameReady?: (actions: { interact: () => void; clearFocus: () => void }) => void;
+interface CityGameProps extends GameEventHandlers {
+  onGameReady?: (actions: GameActions) => void;
 }
 
 export function CityGame({ onBuildingFocused, onInteractableChange, onPositionChange, onGameReady }: CityGameProps) {
@@ -25,5 +26,3 @@ export function CityGame({ onBuildingFocused, onInteractableChange, onPositionCh
     />
   );
 }
-
-export type { BuildingData, MapPoint };
