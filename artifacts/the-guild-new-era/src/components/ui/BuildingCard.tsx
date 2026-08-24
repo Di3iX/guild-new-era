@@ -31,6 +31,31 @@ const buildingIcons = {
 
 type ForgeActionId = keyof typeof FORGE_CONFIG.actions;
 
+function labelItem(id: ItemId): string {
+  if (id === 'iron_ore') return 'Руда';
+  if (id === 'iron') return 'Железо';
+  if (id === 'nails') return 'Гвозди';
+  if (id === 'horseshoe') return 'Подкова';
+  if (id === 'simple_sword') return 'Меч';
+  return id;
+}
+
+function BusyBar({ label, progress }: { label: string; progress: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-center text-xs font-medium text-[#5c4b38]">
+        {label} {Math.round(progress * 100)}%
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[#e0d5c3]">
+        <div
+          className="h-full rounded-full bg-[#36564b] transition-all"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function BuildingCard({
   selectedBuilding,
   nearbyBuilding,
@@ -49,7 +74,7 @@ export function BuildingCard({
   const [busyLabel, setBusyLabel] = useState('');
 
   const isAtBuilding =
-    selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
+    !!selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
 
   const runTimedAction = (
     durationSec: number,
@@ -78,7 +103,6 @@ export function BuildingCard({
     requestAnimationFrame(tick);
   };
 
-  // ——— Mine ———
   const handleMineDig = () => {
     if (busy || !selectedBuilding) return;
 
@@ -98,11 +122,10 @@ export function BuildingCard({
         MINE_CONFIG.oreMin +
         Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
       add('iron_ore', amount);
-      onNotice(`Получено: ${amount} Железной руды`);
+      onNotice('Получено: ' + amount + ' Железной руды');
     });
   };
 
-  // ——— Forge ———
   const handleForgeAction = (actionId: ForgeActionId) => {
     if (busy || !selectedBuilding) return;
 
@@ -125,7 +148,7 @@ export function BuildingCard({
 
     runTimedAction(action.durationSec, action.name + '...', () => {
       add(action.output.itemId, action.output.amount);
-      onNotice(`Готово: ${action.output.amount} × ${action.name.replace('Сделать ', '').replace('Переплавить руду', 'Железо')}`);
+      onNotice('Готово: ' + action.output.amount + ' x ' + labelItem(action.output.itemId));
     });
   };
 
@@ -137,7 +160,7 @@ export function BuildingCard({
         <div className="pointer-events-auto absolute bottom-24 left-1/2 w-[calc(100%-24px)] max-w-[360px] -translate-x-1/2 guild-enter md:bottom-28">
           <button
             type="button"
-            data-testid={`button-interact-${nearbyBuilding.id}`}
+            data-testid={'button-interact-' + nearbyBuilding.id}
             onClick={onInteract}
             className="flex w-full items-center justify-between rounded-2xl border border-[#e7cd79] bg-[#38594d] px-4 py-3 text-left text-[#f5edcf] shadow-[0_8px_26px_rgba(48,54,39,.32)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
           >
@@ -180,7 +203,7 @@ export function BuildingCard({
                 {selectedBuilding.type === 'house' ? 'Жилой квартал' : 'Городское дело'}
               </div>
               <h2
-                data-testid={`text-building-name-${selectedBuilding.id}`}
+                data-testid={'text-building-name-' + selectedBuilding.id}
                 className="mt-0.5 font-serif text-lg font-bold"
               >
                 {selectedBuilding.name}
@@ -192,7 +215,7 @@ export function BuildingCard({
           <div className="my-4 h-px bg-[#dccfa9]" />
           <p className="text-sm leading-6 text-[#5c4b38]">{selectedBuilding.detail}</p>
 
-          {/* ——— MINE ——— */}
+          {/* MINE */}
           {selectedBuilding.type === 'mine' && isAtBuilding && (
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
@@ -201,8 +224,7 @@ export function BuildingCard({
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Бесплатных добыч сегодня: <strong>{mineFreeLeft}</strong> /{' '}
-                {MINE_CONFIG.freeDigsPerDay}
+                Бесплатных добыч сегодня: <strong>{mineFreeLeft}</strong> / {MINE_CONFIG.freeDigsPerDay}
                 {mineFreeLeft === 0 && (
                   <span className="mt-0.5 block text-[#a84a3f]">
                     Далее: {MINE_CONFIG.digCost} золота за добычу
@@ -222,14 +244,14 @@ export function BuildingCard({
                 >
                   {mineFreeLeft > 0
                     ? 'Добыть руду'
-                    : `Добыть руду (${MINE_CONFIG.digCost} зол.)`}
+                    : 'Добыть руду (' + MINE_CONFIG.digCost + ' зол.)'}
                   <ArrowUpRight size={16} />
                 </button>
               )}
             </div>
           )}
 
-          {/* ——— FORGE ——— */}
+          {/* FORGE */}
           {selectedBuilding.type === 'forge' && isAtBuilding && (
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
@@ -238,8 +260,7 @@ export function BuildingCard({
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Бесплатных действий сегодня: <strong>{forgeFreeLeft}</strong> /{' '}
-                {FORGE_CONFIG.freeActionsPerDay}
+                Бесплатных действий сегодня: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
               </div>
 
               {busy ? (
@@ -256,7 +277,59 @@ export function BuildingCard({
                       <button
                         key={action.id}
                         type="button"
-                        data-testid={`button-forge-${action.id}`}
+                        data-testid={'button-forge-' + action.id}
                         onClick={() => handleForgeAction(action.id as ForgeActionId)}
                         disabled={disabled}
-                        className="flex w-full flex-col rounded
+                        className="flex w-full flex-col rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5 text-left transition-colors hover:bg-[#e8dbb6]/80 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-[#3d2b1f]">{action.name}</span>
+                          <span className="text-xs text-[#79684d]">
+                            {isFree ? 'бесплатно' : action.cost + ' зол.'}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
+                          Нужно: {action.input.amount} x {labelItem(action.input.itemId)}
+                          {' -> '}
+                          {action.output.amount} x {labelItem(action.output.itemId)}
+                          {' | у тебя: '}
+                          {getAmount(action.input.itemId)}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Other buildings */}
+          {selectedBuilding.type !== 'mine' &&
+            selectedBuilding.type !== 'forge' &&
+            isAtBuilding && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
+                  <span className="h-2 w-2 rounded-full bg-[#738b57]" />
+                  Ты у входа. Можно начать проверку объекта.
+                </div>
+                <button
+                  type="button"
+                  data-testid={'button-test-' + selectedBuilding.id}
+                  onClick={() => onSpendGold(0)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36]"
+                >
+                  Провести осмотр <ArrowUpRight size={16} />
+                </button>
+              </div>
+            )}
+
+          {!isAtBuilding && (
+            <div className="mt-4 rounded-xl border border-dashed border-[#cdbd91] bg-[#eee3bf]/70 px-3 py-2.5 text-xs text-[#75654c]">
+              Маршрут проложен. Подойди ближе, чтобы открыть действия.
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+}
