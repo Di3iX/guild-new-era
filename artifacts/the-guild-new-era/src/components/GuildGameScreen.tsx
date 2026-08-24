@@ -32,6 +32,10 @@ export function GuildGameScreen() {
     [showNotice],
   );
 
+  const handleAddGold = useCallback((amount: number) => {
+    setGold((value) => value + amount);
+  }, []);
+
   const handleTabChange = useCallback((tab: NavKey) => {
     setActiveTab(tab);
     if (tab !== 'city') setSelectedBuilding(null);
@@ -67,6 +71,7 @@ export function GuildGameScreen() {
         gold={gold}
         health={health}
         onSpendGold={handleSpendGold}
+        onAddGold={handleAddGold}
         onNotice={showNotice}
       />
       {notice && (
