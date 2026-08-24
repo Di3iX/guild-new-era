@@ -6,3 +6,10 @@ export type {
   MapPoint,
   PlayerState,
 } from './game';
+
+export type {
+  ItemId,
+  ItemCategory,
+  ItemDefinition,
+  InventoryItems,
+} from './items';
