@@ -9,8 +9,9 @@ import {
 import type { BuildingData } from '@/types/game';
 import { useInventory } from '@/hooks/useInventory';
 import { useDailyLimits } from '@/hooks/useDailyLimits';
-import { MINE_CONFIG, FORGE_CONFIG } from '@/data/production';
+import { MINE_CONFIG, FORGE_CONFIG, MARKET_TAX_RATE } from '@/data/production';
 import type { ItemId } from '@/types/items';
+import { ITEMS } from '@/data/items';
 
 interface BuildingCardProps {
   selectedBuilding: BuildingData | null;
@@ -20,6 +21,7 @@ interface BuildingCardProps {
   gold: number;
   onSpendGold: (amount: number) => void;
   onNotice: (message: string) => void;
+  onAddGold: (amount: number) => void;
 }
 
 const buildingIcons = {
@@ -30,6 +32,15 @@ const buildingIcons = {
 };
 
 type ForgeActionId = keyof typeof FORGE_CONFIG.actions;
+
+/** Sell prices (player sells to market) */
+const SELL_PRICES: Partial<Record<ItemId, number>> = {
+  iron_ore: 3,
+  iron: 12,
+  nails: 4,        // per nail (stack of 4 ≈ 16)
+  horseshoe: 30,
+  simple_sword: 50,
+};
 
 function labelItem(id: ItemId): string {
   if (id === 'iron_ore') return 'Руда';
@@ -64,9 +75,10 @@ export function BuildingCard({
   gold,
   onSpendGold,
   onNotice,
+  onAddGold,
 }: BuildingCardProps) {
   const Icon = selectedBuilding ? buildingIcons[selectedBuilding.type] : House;
-  const { add, remove, has, getAmount } = useInventory();
+  const { add, remove, has, getAmount, items } = useInventory();
   const { mineFreeLeft, forgeFreeLeft, useMineDig, useForgeAction } = useDailyLimits();
 
   const [busy, setBusy] = useState(false);
@@ -103,6 +115,7 @@ export function BuildingCard({
     requestAnimationFrame(tick);
   };
 
+  // ——— Mine ———
   const handleMineDig = () => {
     if (busy || !selectedBuilding) return;
 
@@ -126,6 +139,7 @@ export function BuildingCard({
     });
   };
 
+  // ——— Forge ———
   const handleForgeAction = (actionId: ForgeActionId) => {
     if (busy || !selectedBuilding) return;
 
@@ -152,7 +166,35 @@ export function BuildingCard({
     });
   };
 
+  // ——— Market sell ———
+  const handleSell = (itemId: ItemId, amount: number = 1) => {
+    if (!has(itemId, amount)) {
+      onNotice('Нет предмета для продажи');
+      return;
+    }
+
+    const unitPrice = SELL_PRICES[itemId] ?? 0;
+    if (unitPrice <= 0) {
+      onNotice('Этот товар сейчас не принимают');
+      return;
+    }
+
+    const gross = unitPrice * amount;
+    const tax = Math.floor(gross * MARKET_TAX_RATE);
+    const net = gross - tax;
+
+    remove(itemId, amount);
+    onAddGold(net);
+    onNotice(
+      'Продано за ' + net + ' зол. (налог города: ' + tax + ')',
+    );
+  };
+
   const forgeActions = Object.values(FORGE_CONFIG.actions);
+
+  const sellableItems = (Object.keys(SELL_PRICES) as ItemId[]).filter(
+    (id) => (items[id] ?? 0) > 0,
+  );
 
   return (
     <>
@@ -303,9 +345,65 @@ export function BuildingCard({
             </div>
           )}
 
+          {/* MARKET */}
+          {selectedBuilding.type === 'market' && isAtBuilding && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
+                <span className="h-2 w-2 rounded-full bg-[#738b57]" />
+                Ты на рынке. Можно продавать товар.
+              </div>
+
+              <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
+                Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong> с каждой продажи
+              </div>
+
+              {sellableItems.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-[#d1c293] bg-[#f0e6c8]/50 px-3 py-4 text-center text-sm text-[#6c5a42]">
+                  Нечего продавать.
+                  <br />
+                  <span className="text-xs">Сначала добудь и переработай ресурсы.</span>
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {sellableItems.map((itemId) => {
+                    const amount = getAmount(itemId);
+                    const unitPrice = SELL_PRICES[itemId] ?? 0;
+                    const gross = unitPrice;
+                    const tax = Math.floor(gross * MARKET_TAX_RATE);
+                    const net = gross - tax;
+                    const def = ITEMS[itemId];
+
+                    return (
+                      <button
+                        key={itemId}
+                        type="button"
+                        data-testid={'button-sell-' + itemId}
+                        onClick={() => handleSell(itemId, 1)}
+                        className="flex w-full items-center justify-between rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5 text-left transition-colors hover:bg-[#e8dbb6]/80"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-[#3d2b1f]">
+                            {def?.name ?? labelItem(itemId)}
+                          </div>
+                          <div className="text-[11px] text-[#6b5b4f]">
+                            У тебя: {amount} · цена {unitPrice} · налог {tax} · получишь {net}
+                          </div>
+                        </div>
+                        <span className="ml-2 shrink-0 rounded-lg bg-[#36564b] px-2.5 py-1.5 text-xs font-bold text-[#f5edcf]">
+                          Продать 1
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Other buildings */}
           {selectedBuilding.type !== 'mine' &&
             selectedBuilding.type !== 'forge' &&
+            selectedBuilding.type !== 'market' &&
             isAtBuilding && (
               <div className="mt-4 space-y-2">
                 <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
