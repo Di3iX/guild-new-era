@@ -22,6 +22,7 @@ interface GameUIProps {
   gold: number;
   health: number;
   onSpendGold: (amount: number) => void;
+  onAddGold: (amount: number) => void;
   onNotice: (message: string) => void;
 }
 
@@ -39,6 +40,7 @@ export function GameUI({
   gold,
   health,
   onSpendGold,
+  onAddGold,
   onNotice,
 }: GameUIProps) {
   const isPrototypeTab = activeTab !== 'city';
@@ -84,6 +86,7 @@ export function GameUI({
         onClose={onClosePanel}
         gold={gold}
         onSpendGold={onSpendGold}
+        onAddGold={onAddGold}
         onNotice={onNotice}
       />
 
