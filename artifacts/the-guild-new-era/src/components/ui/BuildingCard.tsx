@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowUpRight,
   Hammer,
@@ -33,11 +33,10 @@ const buildingIcons = {
 
 type ForgeActionId = keyof typeof FORGE_CONFIG.actions;
 
-/** Sell prices (player sells to market) */
 const SELL_PRICES: Partial<Record<ItemId, number>> = {
   iron_ore: 3,
   iron: 12,
-  nails: 4,        // per nail (stack of 4 ≈ 16)
+  nails: 4,
   horseshoe: 30,
   simple_sword: 50,
 };
@@ -67,6 +66,57 @@ function BusyBar({ label, progress }: { label: string; progress: number }) {
   );
 }
 
+function QtyControl({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  const clamp = (n: number) => Math.max(min, Math.min(max, n));
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value - 1))}
+        disabled={value <= min}
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8dbb6] text-sm font-bold text-[#3d2b1f] disabled:opacity-40"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(clamp(Number(e.target.value) || min))}
+        className="h-8 w-14 rounded-lg border border-[#d1c293] bg-white/80 text-center text-sm font-bold text-[#3d2b1f]"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value + 1))}
+        disabled={value >= max}
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8dbb6] text-sm font-bold text-[#3d2b1f] disabled:opacity-40"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(max)}
+        disabled={max <= 0 || value >= max}
+        className="rounded-lg bg-[#36564b] px-2 py-1.5 text-[11px] font-bold text-[#f5edcf] disabled:opacity-40"
+      >
+        Макс
+      </button>
+    </div>
+  );
+}
+
 export function BuildingCard({
   selectedBuilding,
   nearbyBuilding,
@@ -79,14 +129,37 @@ export function BuildingCard({
 }: BuildingCardProps) {
   const Icon = selectedBuilding ? buildingIcons[selectedBuilding.type] : House;
   const { add, remove, has, getAmount, items } = useInventory();
-  const { mineFreeLeft, forgeFreeLeft, useMineDig, useForgeAction } = useDailyLimits();
+  const {
+    mineFreeLeft,
+    forgeFreeLeft,
+    useMineDig,
+    useForgeAction,
+    mineDigsUsed,
+    forgeActionsUsed,
+  } = useDailyLimits();
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [busyLabel, setBusyLabel] = useState('');
 
+  const [mineQty, setMineQty] = useState(1);
+  const [forgeQty, setForgeQty] = useState<Record<string, number>>({});
+
   const isAtBuilding =
     !!selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
+
+  // Макс. добыч: бесплатные + сколько можно купить за золото
+  const maxMineQty = useMemo(() => {
+    const paidPossible = Math.floor(gold / MINE_CONFIG.digCost);
+    return Math.max(0, mineFreeLeft + paidPossible);
+  }, [mineFreeLeft, gold]);
+
+  const safeMineQty = Math.min(Math.max(1, mineQty), Math.max(1, maxMineQty));
+
+  const mineCost = useMemo(() => {
+    const paid = Math.max(0, safeMineQty - mineFreeLeft);
+    return paid * MINE_CONFIG.digCost;
+  }, [safeMineQty, mineFreeLeft]);
 
   const runTimedAction = (
     durationSec: number,
@@ -115,60 +188,120 @@ export function BuildingCard({
     requestAnimationFrame(tick);
   };
 
-  // ——— Mine ———
+  // ——— Mine batch ———
   const handleMineDig = () => {
-    if (busy || !selectedBuilding) return;
+    if (busy || !selectedBuilding || maxMineQty <= 0) return;
 
-    const isFree = mineFreeLeft > 0;
-    const cost = isFree ? 0 : MINE_CONFIG.digCost;
-
-    if (!isFree && gold < cost) {
+    const qty = Math.min(safeMineQty, maxMineQty);
+    if (qty <= 0) {
       onNotice('Недостаточно золота');
       return;
     }
 
-    if (!isFree) onSpendGold(cost);
-    useMineDig();
+    const paid = Math.max(0, qty - mineFreeLeft);
+    const cost = paid * MINE_CONFIG.digCost;
 
-    runTimedAction(MINE_CONFIG.digDurationSec, 'Добыча...', () => {
-      const amount =
-        MINE_CONFIG.oreMin +
-        Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
-      add('iron_ore', amount);
-      onNotice('Получено: ' + amount + ' Железной руды');
+    if (cost > gold) {
+      onNotice('Недостаточно золота');
+      return;
+    }
+
+    if (cost > 0) onSpendGold(cost);
+
+    // списываем дневные попытки
+    for (let i = 0; i < qty; i++) {
+      useMineDig();
+    }
+
+    const totalDuration = MINE_CONFIG.digDurationSec * qty;
+
+    runTimedAction(totalDuration, 'Добыча x' + qty + '...', () => {
+      let totalOre = 0;
+      for (let i = 0; i < qty; i++) {
+        const amount =
+          MINE_CONFIG.oreMin +
+          Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
+        totalOre += amount;
+      }
+      add('iron_ore', totalOre);
+      onNotice('Получено: ' + totalOre + ' Железной руды (x' + qty + ')');
+      setMineQty(1);
     });
   };
 
-  // ——— Forge ———
+  // ——— Forge batch ———
+  const getForgeMaxQty = (actionId: ForgeActionId): number => {
+    const action = FORGE_CONFIG.actions[actionId];
+    const byRes = Math.floor(getAmount(action.input.itemId) / action.input.amount);
+    if (byRes <= 0) return 0;
+
+    // сколько можно сделать бесплатно + за золото
+    let max = 0;
+    let freeLeft = forgeFreeLeft;
+    let goldLeft = gold;
+
+    for (let i = 0; i < byRes; i++) {
+      if (freeLeft > 0) {
+        freeLeft -= 1;
+        max += 1;
+      } else if (goldLeft >= action.cost) {
+        goldLeft -= action.cost;
+        max += 1;
+      } else {
+        break;
+      }
+    }
+    return max;
+  };
+
   const handleForgeAction = (actionId: ForgeActionId) => {
     if (busy || !selectedBuilding) return;
 
     const action = FORGE_CONFIG.actions[actionId];
-    const isFree = forgeFreeLeft > 0;
-    const cost = isFree ? 0 : action.cost;
+    const maxQty = getForgeMaxQty(actionId);
+    const qty = Math.min(forgeQty[actionId] ?? 1, maxQty);
 
-    if (!has(action.input.itemId, action.input.amount)) {
-      onNotice('Недостаточно ресурсов');
+    if (qty <= 0) {
+      onNotice('Недостаточно ресурсов или золота');
       return;
     }
-    if (!isFree && gold < cost) {
+
+    const freeUsed = Math.min(qty, forgeFreeLeft);
+    const paid = qty - freeUsed;
+    const cost = paid * action.cost;
+
+    if (cost > gold) {
       onNotice('Недостаточно золота');
       return;
     }
+    if (!has(action.input.itemId, action.input.amount * qty)) {
+      onNotice('Недостаточно ресурсов');
+      return;
+    }
 
-    if (!isFree) onSpendGold(cost);
-    useForgeAction();
-    remove(action.input.itemId, action.input.amount);
+    if (cost > 0) onSpendGold(cost);
+    for (let i = 0; i < qty; i++) useForgeAction();
+    remove(action.input.itemId, action.input.amount * qty);
 
-    runTimedAction(action.durationSec, action.name + '...', () => {
-      add(action.output.itemId, action.output.amount);
-      onNotice('Готово: ' + action.output.amount + ' x ' + labelItem(action.output.itemId));
+    const totalDuration = action.durationSec * qty;
+
+    runTimedAction(totalDuration, action.name + ' x' + qty + '...', () => {
+      add(action.output.itemId, action.output.amount * qty);
+      onNotice(
+        'Готово: ' +
+          action.output.amount * qty +
+          ' x ' +
+          labelItem(action.output.itemId),
+      );
+      setForgeQty((prev) => ({ ...prev, [actionId]: 1 }));
     });
   };
 
-  // ——— Market sell ———
-  const handleSell = (itemId: ItemId, amount: number = 1) => {
-    if (!has(itemId, amount)) {
+  // ——— Market ———
+  const handleSell = (itemId: ItemId, amount: number) => {
+    const have = getAmount(itemId);
+    const count = Math.min(amount, have);
+    if (count <= 0) {
       onNotice('Нет предмета для продажи');
       return;
     }
@@ -179,15 +312,13 @@ export function BuildingCard({
       return;
     }
 
-    const gross = unitPrice * amount;
+    const gross = unitPrice * count;
     const tax = Math.floor(gross * MARKET_TAX_RATE);
     const net = gross - tax;
 
-    remove(itemId, amount);
+    remove(itemId, count);
     onAddGold(net);
-    onNotice(
-      'Продано за ' + net + ' зол. (налог города: ' + tax + ')',
-    );
+    onNotice('Продано ' + count + ' шт. за ' + net + ' зол. (налог: ' + tax + ')');
   };
 
   const forgeActions = Object.values(FORGE_CONFIG.actions);
@@ -195,6 +326,38 @@ export function BuildingCard({
   const sellableItems = (Object.keys(SELL_PRICES) as ItemId[]).filter(
     (id) => (items[id] ?? 0) > 0,
   );
+
+  const totalSellNet = sellableItems.reduce((sum, id) => {
+    const amount = getAmount(id);
+    const unit = SELL_PRICES[id] ?? 0;
+    const gross = unit * amount;
+    const tax = Math.floor(gross * MARKET_TAX_RATE);
+    return sum + (gross - tax);
+  }, 0);
+
+  const handleSellAll = () => {
+    if (sellableItems.length === 0) {
+      onNotice('Нечего продавать');
+      return;
+    }
+    let totalNet = 0;
+    let totalTax = 0;
+
+    sellableItems.forEach((id) => {
+      const amount = getAmount(id);
+      if (amount <= 0) return;
+      const unit = SELL_PRICES[id] ?? 0;
+      const gross = unit * amount;
+      const tax = Math.floor(gross * MARKET_TAX_RATE);
+      const net = gross - tax;
+      remove(id, amount);
+      totalNet += net;
+      totalTax += tax;
+    });
+
+    onAddGold(totalNet);
+    onNotice('Продано всё за ' + totalNet + ' зол. (налог: ' + totalTax + ')');
+  };
 
   return (
     <>
@@ -262,14 +425,16 @@ export function BuildingCard({
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
                 <span className="h-2 w-2 rounded-full bg-[#738b57]" />
-                Ты у входа. Можно добывать руду.
+                Ты у входа. Выбери, сколько раз добывать.
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Бесплатных добыч сегодня: <strong>{mineFreeLeft}</strong> / {MINE_CONFIG.freeDigsPerDay}
-                {mineFreeLeft === 0 && (
+                Бесплатных сегодня: <strong>{mineFreeLeft}</strong> / {MINE_CONFIG.freeDigsPerDay}
+                <br />
+                Можно всего: <strong>{maxMineQty}</strong>
+                {mineCost > 0 && (
                   <span className="mt-0.5 block text-[#a84a3f]">
-                    Далее: {MINE_CONFIG.digCost} золота за добычу
+                    Стоимость: {mineCost} золота
                   </span>
                 )}
               </div>
@@ -277,18 +442,26 @@ export function BuildingCard({
               {busy ? (
                 <BusyBar label={busyLabel} progress={progress} />
               ) : (
-                <button
-                  type="button"
-                  data-testid="button-mine-dig"
-                  onClick={handleMineDig}
-                  disabled={mineFreeLeft === 0 && gold < MINE_CONFIG.digCost}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {mineFreeLeft > 0
-                    ? 'Добыть руду'
-                    : 'Добыть руду (' + MINE_CONFIG.digCost + ' зол.)'}
-                  <ArrowUpRight size={16} />
-                </button>
+                <>
+                  <QtyControl
+                    value={safeMineQty}
+                    min={1}
+                    max={Math.max(1, maxMineQty)}
+                    onChange={setMineQty}
+                  />
+                  <button
+                    type="button"
+                    data-testid="button-mine-dig"
+                    onClick={handleMineDig}
+                    disabled={maxMineQty <= 0}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {mineCost > 0
+                      ? 'Добыть x' + safeMineQty + ' (' + mineCost + ' зол.)'
+                      : 'Добыть x' + safeMineQty}
+                    <ArrowUpRight size={16} />
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -298,36 +471,35 @@ export function BuildingCard({
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
                 <span className="h-2 w-2 rounded-full bg-[#738b57]" />
-                Ты у горна. Можно работать.
+                Ты у горна. Выбери количество крафта.
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Бесплатных действий сегодня: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
+                Бесплатных действий сегодня: <strong>{forgeFreeLeft}</strong> /{' '}
+                {FORGE_CONFIG.freeActionsPerDay}
               </div>
 
               {busy ? (
                 <BusyBar label={busyLabel} progress={progress} />
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {forgeActions.map((action) => {
-                    const canAffordRes = has(action.input.itemId, action.input.amount);
-                    const isFree = forgeFreeLeft > 0;
-                    const canAffordGold = isFree || gold >= action.cost;
-                    const disabled = !canAffordRes || !canAffordGold;
+                    const maxQty = getForgeMaxQty(action.id as ForgeActionId);
+                    const qty = Math.min(forgeQty[action.id] ?? 1, Math.max(1, maxQty));
+                    const freeUsed = Math.min(qty, forgeFreeLeft);
+                    const paid = Math.max(0, qty - freeUsed);
+                    const cost = paid * action.cost;
+                    const disabled = maxQty <= 0;
 
                     return (
-                      <button
+                      <div
                         key={action.id}
-                        type="button"
-                        data-testid={'button-forge-' + action.id}
-                        onClick={() => handleForgeAction(action.id as ForgeActionId)}
-                        disabled={disabled}
-                        className="flex w-full flex-col rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5 text-left transition-colors hover:bg-[#e8dbb6]/80 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-[#3d2b1f]">{action.name}</span>
-                          <span className="text-xs text-[#79684d]">
-                            {isFree ? 'бесплатно' : action.cost + ' зол.'}
+                          <span className="text-[11px] text-[#79684d]">
+                            макс. {maxQty}
                           </span>
                         </div>
                         <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
@@ -337,7 +509,30 @@ export function BuildingCard({
                           {' | у тебя: '}
                           {getAmount(action.input.itemId)}
                         </div>
-                      </button>
+
+                        <div className="mt-2">
+                          <QtyControl
+                            value={qty}
+                            min={1}
+                            max={Math.max(1, maxQty)}
+                            onChange={(v) =>
+                              setForgeQty((prev) => ({ ...prev, [action.id]: v }))
+                            }
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          data-testid={'button-forge-' + action.id}
+                          onClick={() => handleForgeAction(action.id as ForgeActionId)}
+                          disabled={disabled}
+                          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-2.5 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36] disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          {cost > 0
+                            ? 'Сделать x' + qty + ' (' + cost + ' зол.)'
+                            : 'Сделать x' + qty}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -354,80 +549,26 @@ export function BuildingCard({
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong> с каждой продажи
+                Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong>
               </div>
 
               {sellableItems.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-[#d1c293] bg-[#f0e6c8]/50 px-3 py-4 text-center text-sm text-[#6c5a42]">
                   Нечего продавать.
-                  <br />
-                  <span className="text-xs">Сначала добудь и переработай ресурсы.</span>
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {sellableItems.map((itemId) => {
-                    const amount = getAmount(itemId);
-                    const unitPrice = SELL_PRICES[itemId] ?? 0;
-                    const gross = unitPrice;
-                    const tax = Math.floor(gross * MARKET_TAX_RATE);
-                    const net = gross - tax;
-                    const def = ITEMS[itemId];
+                <>
+                  <button
+                    type="button"
+                    data-testid="button-sell-all"
+                    onClick={handleSellAll}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#36564b] px-3 py-3 text-sm font-bold text-[#f5edcf] hover:bg-[#2c483e]"
+                  >
+                    Продать всё (\~{totalSellNet} зол.)
+                  </button>
 
-                    return (
-                      <button
-                        key={itemId}
-                        type="button"
-                        data-testid={'button-sell-' + itemId}
-                        onClick={() => handleSell(itemId, 1)}
-                        className="flex w-full items-center justify-between rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5 text-left transition-colors hover:bg-[#e8dbb6]/80"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-bold text-[#3d2b1f]">
-                            {def?.name ?? labelItem(itemId)}
-                          </div>
-                          <div className="text-[11px] text-[#6b5b4f]">
-                            У тебя: {amount} · цена {unitPrice} · налог {tax} · получишь {net}
-                          </div>
-                        </div>
-                        <span className="ml-2 shrink-0 rounded-lg bg-[#36564b] px-2.5 py-1.5 text-xs font-bold text-[#f5edcf]">
-                          Продать 1
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Other buildings */}
-          {selectedBuilding.type !== 'mine' &&
-            selectedBuilding.type !== 'forge' &&
-            selectedBuilding.type !== 'market' &&
-            isAtBuilding && (
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
-                  <span className="h-2 w-2 rounded-full bg-[#738b57]" />
-                  Ты у входа. Можно начать проверку объекта.
-                </div>
-                <button
-                  type="button"
-                  data-testid={'button-test-' + selectedBuilding.id}
-                  onClick={() => onSpendGold(0)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36]"
-                >
-                  Провести осмотр <ArrowUpRight size={16} />
-                </button>
-              </div>
-            )}
-
-          {!isAtBuilding && (
-            <div className="mt-4 rounded-xl border border-dashed border-[#cdbd91] bg-[#eee3bf]/70 px-3 py-2.5 text-xs text-[#75654c]">
-              Маршрут проложен. Подойди ближе, чтобы открыть действия.
-            </div>
-          )}
-        </section>
-      )}
-    </>
-  );
-}
+                  <div className="space-y-2">
+                    {sellableItems.map((itemId) => {
+                      const amount = getAmount(itemId);
+                      const unitPrice = SELL_PRICES[itemId] ?? 0;
+                      const taxOne = Math.floor(unitPrice * MARKET_TAX_RA
