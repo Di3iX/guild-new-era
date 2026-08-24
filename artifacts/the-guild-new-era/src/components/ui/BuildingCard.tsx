@@ -9,7 +9,8 @@ import {
 import type { BuildingData } from '@/types/game';
 import { useInventory } from '@/hooks/useInventory';
 import { useDailyLimits } from '@/hooks/useDailyLimits';
-import { MINE_CONFIG } from '@/data/production';
+import { MINE_CONFIG, FORGE_CONFIG } from '@/data/production';
+import type { ItemId } from '@/types/items';
 
 interface BuildingCardProps {
   selectedBuilding: BuildingData | null;
@@ -28,6 +29,8 @@ const buildingIcons = {
   market: ShoppingBasket,
 };
 
+type ForgeActionId = keyof typeof FORGE_CONFIG.actions;
+
 export function BuildingCard({
   selectedBuilding,
   nearbyBuilding,
@@ -38,16 +41,46 @@ export function BuildingCard({
   onNotice,
 }: BuildingCardProps) {
   const Icon = selectedBuilding ? buildingIcons[selectedBuilding.type] : House;
-  const { add } = useInventory();
-  const { mineFreeLeft, useMineDig } = useDailyLimits();
-  const [digging, setDigging] = useState(false);
+  const { add, remove, has, getAmount } = useInventory();
+  const { mineFreeLeft, forgeFreeLeft, useMineDig, useForgeAction } = useDailyLimits();
+
+  const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [busyLabel, setBusyLabel] = useState('');
 
   const isAtBuilding =
     selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
 
+  const runTimedAction = (
+    durationSec: number,
+    label: string,
+    onComplete: () => void,
+  ) => {
+    setBusy(true);
+    setBusyLabel(label);
+    setProgress(0);
+    const duration = durationSec * 1000;
+    const start = Date.now();
+
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(1, elapsed / duration);
+      setProgress(p);
+      if (p < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        setBusy(false);
+        setProgress(0);
+        setBusyLabel('');
+        onComplete();
+      }
+    };
+    requestAnimationFrame(tick);
+  };
+
+  // ——— Mine ———
   const handleMineDig = () => {
-    if (digging || !selectedBuilding) return;
+    if (busy || !selectedBuilding) return;
 
     const isFree = mineFreeLeft > 0;
     const cost = isFree ? 0 : MINE_CONFIG.digCost;
@@ -57,37 +90,46 @@ export function BuildingCard({
       return;
     }
 
-    if (!isFree) {
-      onSpendGold(cost);
+    if (!isFree) onSpendGold(cost);
+    useMineDig();
+
+    runTimedAction(MINE_CONFIG.digDurationSec, 'Добыча...', () => {
+      const amount =
+        MINE_CONFIG.oreMin +
+        Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
+      add('iron_ore', amount);
+      onNotice(`Получено: ${amount} Железной руды`);
+    });
+  };
+
+  // ——— Forge ———
+  const handleForgeAction = (actionId: ForgeActionId) => {
+    if (busy || !selectedBuilding) return;
+
+    const action = FORGE_CONFIG.actions[actionId];
+    const isFree = forgeFreeLeft > 0;
+    const cost = isFree ? 0 : action.cost;
+
+    if (!has(action.input.itemId, action.input.amount)) {
+      onNotice('Недостаточно ресурсов');
+      return;
+    }
+    if (!isFree && gold < cost) {
+      onNotice('Недостаточно золота');
+      return;
     }
 
-    useMineDig();
-    setDigging(true);
-    setProgress(0);
+    if (!isFree) onSpendGold(cost);
+    useForgeAction();
+    remove(action.input.itemId, action.input.amount);
 
-    const duration = MINE_CONFIG.digDurationSec * 1000;
-    const start = Date.now();
-
-    const tick = () => {
-      const elapsed = Date.now() - start;
-      const p = Math.min(1, elapsed / duration);
-      setProgress(p);
-
-      if (p < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        const amount =
-          MINE_CONFIG.oreMin +
-          Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
-        add('iron_ore', amount);
-        setDigging(false);
-        setProgress(0);
-        onNotice(`Получено: ${amount} Железной руды`);
-      }
-    };
-
-    requestAnimationFrame(tick);
+    runTimedAction(action.durationSec, action.name + '...', () => {
+      add(action.output.itemId, action.output.amount);
+      onNotice(`Готово: ${action.output.amount} × ${action.name.replace('Сделать ', '').replace('Переплавить руду', 'Железо')}`);
+    });
   };
+
+  const forgeActions = Object.values(FORGE_CONFIG.actions);
 
   return (
     <>
@@ -150,7 +192,7 @@ export function BuildingCard({
           <div className="my-4 h-px bg-[#dccfa9]" />
           <p className="text-sm leading-6 text-[#5c4b38]">{selectedBuilding.detail}</p>
 
-          {/* Mine actions */}
+          {/* ——— MINE ——— */}
           {selectedBuilding.type === 'mine' && isAtBuilding && (
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
@@ -159,33 +201,24 @@ export function BuildingCard({
               </div>
 
               <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-                Бесплатных добыч сегодня: <strong>{mineFreeLeft}</strong> / {MINE_CONFIG.freeDigsPerDay}
+                Бесплатных добыч сегодня: <strong>{mineFreeLeft}</strong> /{' '}
+                {MINE_CONFIG.freeDigsPerDay}
                 {mineFreeLeft === 0 && (
-                  <span className="block mt-0.5 text-[#a84a3f]">
+                  <span className="mt-0.5 block text-[#a84a3f]">
                     Далее: {MINE_CONFIG.digCost} золота за добычу
                   </span>
                 )}
               </div>
 
-              {digging ? (
-                <div className="space-y-2">
-                  <div className="text-center text-xs font-medium text-[#5c4b38]">
-                    Добыча... {Math.round(progress * 100)}%
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[#e0d5c3]">
-                    <div
-                      className="h-full rounded-full bg-[#36564b] transition-all"
-                      style={{ width: `${progress * 100}%` }}
-                    />
-                  </div>
-                </div>
+              {busy ? (
+                <BusyBar label={busyLabel} progress={progress} />
               ) : (
                 <button
                   type="button"
                   data-testid="button-mine-dig"
                   onClick={handleMineDig}
                   disabled={mineFreeLeft === 0 && gold < MINE_CONFIG.digCost}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {mineFreeLeft > 0
                     ? 'Добыть руду'
@@ -196,31 +229,34 @@ export function BuildingCard({
             </div>
           )}
 
-          {/* Other buildings — temporary inspect */}
-          {selectedBuilding.type !== 'mine' && isAtBuilding && (
-            <div className="mt-4 space-y-2">
+          {/* ——— FORGE ——— */}
+          {selectedBuilding.type === 'forge' && isAtBuilding && (
+            <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
                 <span className="h-2 w-2 rounded-full bg-[#738b57]" />
-                Ты у входа. Можно начать проверку объекта.
+                Ты у горна. Можно работать.
               </div>
-              <button
-                type="button"
-                data-testid={`button-test-${selectedBuilding.id}`}
-                onClick={() => onSpendGold(0)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#a84a3f] px-3 py-3 text-sm font-bold text-[#faeed1] transition-colors hover:bg-[#923e36]"
-              >
-                Провести осмотр <ArrowUpRight size={16} />
-              </button>
-            </div>
-          )}
 
-          {!isAtBuilding && (
-            <div className="mt-4 rounded-xl border border-dashed border-[#cdbd91] bg-[#eee3bf]/70 px-3 py-2.5 text-xs text-[#75654c]">
-              Маршрут проложен. Подойди ближе, чтобы открыть действия.
-            </div>
-          )}
-        </section>
-      )}
-    </>
-  );
-}
+              <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
+                Бесплатных действий сегодня: <strong>{forgeFreeLeft}</strong> /{' '}
+                {FORGE_CONFIG.freeActionsPerDay}
+              </div>
+
+              {busy ? (
+                <BusyBar label={busyLabel} progress={progress} />
+              ) : (
+                <div className="space-y-2">
+                  {forgeActions.map((action) => {
+                    const canAffordRes = has(action.input.itemId, action.input.amount);
+                    const isFree = forgeFreeLeft > 0;
+                    const canAffordGold = isFree || gold >= action.cost;
+                    const disabled = !canAffordRes || !canAffordGold;
+
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        data-testid={`button-forge-${action.id}`}
+                        onClick={() => handleForgeAction(action.id as ForgeActionId)}
+                        disabled={disabled}
+                        className="flex w-full flex-col rounded
