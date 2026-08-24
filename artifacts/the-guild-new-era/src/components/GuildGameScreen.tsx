@@ -1,20 +1,47 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CircleHelp, Coins, Heart, X } from 'lucide-react';
 import { CityGame } from '@/components/CityGame';
 import { GameUI, type NavKey } from '@/components/GameUI';
 import type { GameActions, BuildingData, MapPoint } from '@/types/game';
+
+const GOLD_KEY = 'guild-gold';
+const DEFAULT_GOLD = 50;
+
+function loadGold(): number {
+  try {
+    const raw = localStorage.getItem(GOLD_KEY);
+    if (raw === null) return DEFAULT_GOLD;
+    const value = Number(raw);
+    return Number.isFinite(value) ? Math.max(0, value) : DEFAULT_GOLD;
+  } catch {
+    return DEFAULT_GOLD;
+  }
+}
+
+function saveGold(value: number) {
+  try {
+    localStorage.setItem(GOLD_KEY, String(value));
+  } catch {
+    // ignore
+  }
+}
 
 export function GuildGameScreen() {
   const [activeTab, setActiveTab] = useState<NavKey>('city');
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
   const [nearbyBuilding, setNearbyBuilding] = useState<BuildingData | null>(null);
   const [playerPoint, setPlayerPoint] = useState<MapPoint>({ x: 11.5, y: 12 });
-  const [gold, setGold] = useState(50);
+  const [gold, setGold] = useState(loadGold);
   const [health] = useState(86);
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const gameActions = useRef<GameActions | null>(null);
+
+  // Persist gold whenever it changes
+  useEffect(() => {
+    saveGold(gold);
+  }, [gold]);
 
   const showNotice = useCallback((message: string) => {
     setNotice(message);
