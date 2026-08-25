@@ -27,15 +27,21 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
   const { add, remove, has, getAmount } = useInventory();
   const { forgeFreeLeft, useForgeAction } = useDailyLimits();
 
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [busyLabel, setBusyLabel] = useState('');
   const [forgeQty, setForgeQty] = useState<Record<string, number>>({});
 
   const forgeActions = Object.values(FORGE_CONFIG.actions);
+  const isBusy = busyId !== null;
 
-  const runTimedAction = (durationSec: number, label: string, onComplete: () => void) => {
-    setBusy(true);
+  const runTimedAction = (
+    actionId: string,
+    durationSec: number,
+    label: string,
+    onComplete: () => void,
+  ) => {
+    setBusyId(actionId);
     setBusyLabel(label);
     setProgress(0);
     const duration = durationSec * 1000;
@@ -48,7 +54,7 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
       if (p < 1) {
         requestAnimationFrame(tick);
       } else {
-        setBusy(false);
+        setBusyId(null);
         setProgress(0);
         setBusyLabel('');
         onComplete();
@@ -81,13 +87,14 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
   };
 
   const handleForgeAction = (actionId: ForgeActionId) => {
-    if (busy) return;
+    if (isBusy) return;
 
     const action = FORGE_CONFIG.actions[actionId];
     const maxQty = getForgeMaxQty(actionId);
-    const qty = Math.min(forgeQty[actionId] ?? 1, maxQty);
+    const rawQty = forgeQty[actionId] ?? 1;
+    const qty = Math.min(Math.max(1, rawQty), maxQty);
 
-    if (qty <= 0) {
+    if (qty <= 0 || maxQty <= 0) {
       onNotice('Недостаточно ресурсов или золота');
       return;
     }
@@ -109,13 +116,18 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     for (let i = 0; i < qty; i++) useForgeAction();
     remove(action.input.itemId, action.input.amount * qty);
 
-    runTimedAction(action.durationSec * qty, action.name + ' x' + qty + '...', () => {
-      add(action.output.itemId, action.output.amount * qty);
-      onNotice(
-        'Готово: ' + action.output.amount * qty + ' x ' + labelItem(action.output.itemId),
-      );
-      setForgeQty((prev) => ({ ...prev, [actionId]: 1 }));
-    });
+    runTimedAction(
+      actionId,
+      action.durationSec * qty,
+      action.name + ' x' + qty + '...',
+      () => {
+        add(action.output.itemId, action.output.amount * qty);
+        onNotice(
+          'Готово: ' + action.output.amount * qty + ' x ' + labelItem(action.output.itemId),
+        );
+        setForgeQty((prev) => ({ ...prev, [actionId]: 1 }));
+      },
+    );
   };
 
   return (
@@ -127,58 +139,65 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
         Бесплатных действий: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
       </div>
 
-      {busy ? (
-        <BusyBar label={busyLabel} progress={progress} />
-      ) : (
-        <div className="space-y-3">
-          {forgeActions.map((action) => {
-            const maxQty = getForgeMaxQty(action.id as ForgeActionId);
-            const qty = Math.min(forgeQty[action.id] ?? 1, Math.max(1, maxQty));
-            const freeUsed = Math.min(qty, forgeFreeLeft);
-            const paid = Math.max(0, qty - freeUsed);
-            const cost = paid * action.cost;
+      <div className="space-y-3">
+        {forgeActions.map((action) => {
+          const maxQty = getForgeMaxQty(action.id as ForgeActionId);
+          const rawQty = forgeQty[action.id] ?? 1;
+          const qty = Math.min(Math.max(1, rawQty), Math.max(1, maxQty));
+          const freeUsed = Math.min(qty, forgeFreeLeft);
+          const paid = Math.max(0, qty - freeUsed);
+          const cost = paid * action.cost;
+          const thisBusy = busyId === action.id;
 
-            return (
-              <div
-                key={action.id}
-                className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#3d2b1f]">{action.name}</span>
-                  <span className="text-[11px] text-[#79684d]">макс. {maxQty}</span>
-                </div>
-                <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
-                  Нужно: {action.input.amount} x {labelItem(action.input.itemId)}
-                  {' -> '}
-                  {action.output.amount} x {labelItem(action.output.itemId)}
-                  {' | у тебя: '}
-                  {getAmount(action.input.itemId)}
-                </div>
-                <div className="mt-2">
-                  <QtyControl
-                    value={qty}
-                    min={1}
-                    max={Math.max(1, maxQty)}
-                    onChange={(v) =>
-                      setForgeQty((prev) => ({ ...prev, [action.id]: v }))
-                    }
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleForgeAction(action.id as ForgeActionId)}
-                  disabled={maxQty <= 0}
-                  className="mt-2 flex w-full items-center justify-center rounded-xl bg-[#a84a3f] px-3 py-2.5 text-sm font-bold text-[#faeed1] disabled:opacity-45"
-                >
-                  {cost > 0
-                    ? 'Сделать x' + qty + ' (' + cost + ' зол.)'
-                    : 'Сделать x' + qty}
-                </button>
+          return (
+            <div
+              key={action.id}
+              className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-[#3d2b1f]">{action.name}</span>
+                <span className="text-[11px] text-[#79684d]">макс. {maxQty}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
+                Нужно: {action.input.amount} x {labelItem(action.input.itemId)}
+                {' -> '}
+                {action.output.amount} x {labelItem(action.output.itemId)}
+                {' | у тебя: '}
+                {getAmount(action.input.itemId)}
+              </div>
+
+              {thisBusy ? (
+                <div className="mt-2">
+                  <BusyBar label={busyLabel} progress={progress} />
+                </div>
+              ) : (
+                <>
+                  <div className="mt-2">
+                    <QtyControl
+                      value={qty}
+                      min={1}
+                      max={Math.max(1, maxQty)}
+                      onChange={(v) =>
+                        setForgeQty((prev) => ({ ...prev, [action.id]: v }))
+                      }
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleForgeAction(action.id as ForgeActionId)}
+                    disabled={maxQty <= 0 || isBusy}
+                    className="mt-2 flex w-full items-center justify-center rounded-xl bg-[#a84a3f] px-3 py-2.5 text-sm font-bold text-[#faeed1] disabled:opacity-45"
+                  >
+                    {cost > 0
+                      ? 'Сделать x' + qty + ' (' + cost + ' зол.)'
+                      : 'Сделать x' + qty}
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
