@@ -1,8 +1,11 @@
+import { useMemo, useState } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { MARKET_TAX_RATE } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { ITEMS } from '@/data/items';
+import { QtyControl } from './QtyControl';
 
+/** Цена продажи игроком рынку */
 const SELL_PRICES: Partial<Record<ItemId, number>> = {
   iron_ore: 3,
   iron: 12,
@@ -10,6 +13,17 @@ const SELL_PRICES: Partial<Record<ItemId, number>> = {
   horseshoe: 30,
   simple_sword: 50,
 };
+
+/** Цена покупки игроком у рынка (выше продажной) */
+const BUY_PRICES: Partial<Record<ItemId, number>> = {
+  iron_ore: 5,
+  iron: 18,
+  nails: 7,
+  horseshoe: 45,
+  simple_sword: 75,
+};
+
+const BUYABLE_ITEMS: ItemId[] = ['iron_ore', 'iron', 'nails', 'horseshoe', 'simple_sword'];
 
 function labelItem(id: ItemId): string {
   if (id === 'iron_ore') return 'Руда';
@@ -21,12 +35,21 @@ function labelItem(id: ItemId): string {
 }
 
 interface MarketPanelProps {
+  gold: number;
+  onSpendGold: (amount: number) => void;
   onAddGold: (amount: number) => void;
   onNotice: (message: string) => void;
 }
 
-export function MarketPanel({ onAddGold, onNotice }: MarketPanelProps) {
-  const { remove, getAmount, items } = useInventory();
+export function MarketPanel({
+  gold,
+  onSpendGold,
+  onAddGold,
+  onNotice,
+}: MarketPanelProps) {
+  const { add, remove, getAmount, items } = useInventory();
+  const [tab, setTab] = useState<'sell' | 'buy'>('sell');
+  const [buyQty, setBuyQty] = useState<Record<string, number>>({});
 
   const sellableItems = (Object.keys(SELL_PRICES) as ItemId[]).filter(
     (id) => (items[id] ?? 0) > 0,
@@ -87,67 +110,179 @@ export function MarketPanel({ onAddGold, onNotice }: MarketPanelProps) {
     onNotice('Продано всё за ' + totalNet + ' зол. (налог: ' + totalTax + ')');
   };
 
+  const getMaxBuyQty = (itemId: ItemId): number => {
+    const price = BUY_PRICES[itemId] ?? 0;
+    if (price <= 0) return 0;
+    return Math.floor(gold / price);
+  };
+
+  const handleBuy = (itemId: ItemId) => {
+    const price = BUY_PRICES[itemId] ?? 0;
+    if (price <= 0) return;
+
+    const maxQty = getMaxBuyQty(itemId);
+    const raw = buyQty[itemId] ?? 1;
+    const qty = Math.min(Math.max(1, raw), maxQty);
+
+    if (qty <= 0 || maxQty <= 0) {
+      onNotice('Недостаточно золота');
+      return;
+    }
+
+    const total = price * qty;
+    if (total > gold) {
+      onNotice('Недостаточно золота');
+      return;
+    }
+
+    onSpendGold(total);
+    add(itemId, qty);
+    onNotice('Куплено: ' + qty + ' x ' + (ITEMS[itemId]?.name ?? labelItem(itemId)));
+    setBuyQty((prev) => ({ ...prev, [itemId]: 1 }));
+  };
+
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
-        Можно продавать товар.
-      </div>
-      <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-        Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong>
+        Рынок: можно продавать и покупать.
       </div>
 
-      {sellableItems.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#d1c293] px-3 py-4 text-center text-sm text-[#6c5a42]">
-          Нечего продавать.
-        </p>
-      ) : (
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTab('sell')}
+          className={
+            'flex-1 rounded-xl px-3 py-2 text-sm font-bold ' +
+            (tab === 'sell'
+              ? 'bg-[#36564b] text-[#f5edcf]'
+              : 'bg-white/60 text-[#5c4b38] border border-[#d1c293]')
+          }
+        >
+          Продажа
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('buy')}
+          className={
+            'flex-1 rounded-xl px-3 py-2 text-sm font-bold ' +
+            (tab === 'buy'
+              ? 'bg-[#36564b] text-[#f5edcf]'
+              : 'bg-white/60 text-[#5c4b38] border border-[#d1c293]')
+          }
+        >
+          Покупка
+        </button>
+      </div>
+
+      {tab === 'sell' && (
         <>
-          <button
-            type="button"
-            onClick={handleSellAll}
-            className="flex w-full items-center justify-center rounded-xl bg-[#36564b] px-3 py-3 text-sm font-bold text-[#f5edcf]"
-          >
-            Продать всё (\~{totalSellNet} зол.)
-          </button>
-          <div className="space-y-2">
-            {sellableItems.map((itemId) => {
-              const amount = getAmount(itemId);
-              const unitPrice = SELL_PRICES[itemId] ?? 0;
-              const netOne = unitPrice - Math.floor(unitPrice * MARKET_TAX_RATE);
-              const def = ITEMS[itemId];
-
-              return (
-                <div
-                  key={itemId}
-                  className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
-                >
-                  <div className="text-sm font-bold text-[#3d2b1f]">
-                    {def?.name ?? labelItem(itemId)}
-                  </div>
-                  <div className="text-[11px] text-[#6b5b4f]">
-                    У тебя: {amount} · цена {unitPrice} · за 1 шт. {netOne} зол.
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSell(itemId, 1)}
-                      className="flex-1 rounded-lg bg-[#a84a3f] px-2 py-2 text-xs font-bold text-[#faeed1]"
-                    >
-                      Продать 1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSell(itemId, amount)}
-                      className="flex-1 rounded-lg bg-[#36564b] px-2 py-2 text-xs font-bold text-[#f5edcf]"
-                    >
-                      Все ({amount})
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
+            Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong>
           </div>
+
+          {sellableItems.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[#d1c293] px-3 py-4 text-center text-sm text-[#6c5a42]">
+              Нечего продавать.
+            </p>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleSellAll}
+                className="flex w-full items-center justify-center rounded-xl bg-[#36564b] px-3 py-3 text-sm font-bold text-[#f5edcf]"
+              >
+                Продать всё (\~{totalSellNet} зол.)
+              </button>
+              <div className="space-y-2">
+                {sellableItems.map((itemId) => {
+                  const amount = getAmount(itemId);
+                  const unitPrice = SELL_PRICES[itemId] ?? 0;
+                  const netOne = unitPrice - Math.floor(unitPrice * MARKET_TAX_RATE);
+                  const def = ITEMS[itemId];
+
+                  return (
+                    <div
+                      key={itemId}
+                      className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
+                    >
+                      <div className="text-sm font-bold text-[#3d2b1f]">
+                        {def?.name ?? labelItem(itemId)}
+                      </div>
+                      <div className="text-[11px] text-[#6b5b4f]">
+                        У тебя: {amount} · цена {unitPrice} · за 1 шт. {netOne} зол.
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSell(itemId, 1)}
+                          className="flex-1 rounded-lg bg-[#a84a3f] px-2 py-2 text-xs font-bold text-[#faeed1]"
+                        >
+                          Продать 1
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSell(itemId, amount)}
+                          className="flex-1 rounded-lg bg-[#36564b] px-2 py-2 text-xs font-bold text-[#f5edcf]"
+                        >
+                          Все ({amount})
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
+      )}
+
+      {tab === 'buy' && (
+        <div className="space-y-2">
+          {BUYABLE_ITEMS.map((itemId) => {
+            const price = BUY_PRICES[itemId] ?? 0;
+            const maxQty = getMaxBuyQty(itemId);
+            const raw = buyQty[itemId] ?? 1;
+            const qty = Math.min(Math.max(1, raw), Math.max(1, maxQty));
+            const total = price * qty;
+            const def = ITEMS[itemId];
+
+            return (
+              <div
+                key={itemId}
+                className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#3d2b1f]">
+                    {def?.name ?? labelItem(itemId)}
+                  </span>
+                  <span className="text-[11px] text-[#79684d]">{price} зол. / шт.</span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
+                  У тебя: {getAmount(itemId)} · можно купить: {maxQty}
+                </div>
+                <div className="mt-2">
+                  <QtyControl
+                    value={qty}
+                    min={1}
+                    max={Math.max(1, maxQty)}
+                    onChange={(v) => setBuyQty((prev) => ({ ...prev, [itemId]: v }))}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBuy(itemId)}
+                  disabled={maxQty <= 0}
+                  className="mt-2 flex w-full items-center justify-center rounded-xl bg-[#a84a3f] px-3 py-2.5 text-sm font-bold text-[#faeed1] disabled:opacity-45"
+                >
+                  {maxQty <= 0
+                    ? 'Недостаточно золота'
+                    : 'Купить x' + qty + ' (' + total + ' зол.)'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
