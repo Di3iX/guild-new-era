@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useInventory } from '@/hooks/useInventory';
+import { useOwnership } from '@/hooks/useOwnership';
 import { MARKET_TAX_RATE } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { ITEMS } from '@/data/items';
 import { QtyControl } from './QtyControl';
 
-/** Цена продажи игроком рынку */
+const MARKET_BUILDING_ID = 'river-market';
+
 const SELL_PRICES: Partial<Record<ItemId, number>> = {
   iron_ore: 3,
   iron: 12,
@@ -14,7 +16,6 @@ const SELL_PRICES: Partial<Record<ItemId, number>> = {
   simple_sword: 50,
 };
 
-/** Цена покупки игроком у рынка (выше продажной) */
 const BUY_PRICES: Partial<Record<ItemId, number>> = {
   iron_ore: 5,
   iron: 18,
@@ -48,6 +49,10 @@ export function MarketPanel({
   onNotice,
 }: MarketPanelProps) {
   const { add, remove, getAmount, items } = useInventory();
+  const { isOwned } = useOwnership();
+  const owned = isOwned(MARKET_BUILDING_ID);
+  const taxRate = owned ? 0 : MARKET_TAX_RATE;
+
   const [tab, setTab] = useState<'sell' | 'buy'>('sell');
   const [buyQty, setBuyQty] = useState<Record<string, number>>({});
 
@@ -59,7 +64,7 @@ export function MarketPanel({
     const amount = getAmount(id);
     const unit = SELL_PRICES[id] ?? 0;
     const gross = unit * amount;
-    const tax = Math.floor(gross * MARKET_TAX_RATE);
+    const tax = Math.floor(gross * taxRate);
     return sum + (gross - tax);
   }, 0);
 
@@ -78,12 +83,16 @@ export function MarketPanel({
     }
 
     const gross = unitPrice * count;
-    const tax = Math.floor(gross * MARKET_TAX_RATE);
+    const tax = Math.floor(gross * taxRate);
     const net = gross - tax;
 
     remove(itemId, count);
     onAddGold(net);
-    onNotice('Продано ' + count + ' шт. за ' + net + ' зол. (налог: ' + tax + ')');
+    onNotice(
+      tax > 0
+        ? 'Продано ' + count + ' шт. за ' + net + ' зол. (налог: ' + tax + ')'
+        : 'Продано ' + count + ' шт. за ' + net + ' зол. (без налога)',
+    );
   };
 
   const handleSellAll = () => {
@@ -100,14 +109,18 @@ export function MarketPanel({
       if (amount <= 0) return;
       const unit = SELL_PRICES[id] ?? 0;
       const gross = unit * amount;
-      const tax = Math.floor(gross * MARKET_TAX_RATE);
+      const tax = Math.floor(gross * taxRate);
       remove(id, amount);
       totalNet += gross - tax;
       totalTax += tax;
     });
 
     onAddGold(totalNet);
-    onNotice('Продано всё за ' + totalNet + ' зол. (налог: ' + totalTax + ')');
+    onNotice(
+      totalTax > 0
+        ? 'Продано всё за ' + totalNet + ' зол. (налог: ' + totalTax + ')'
+        : 'Продано всё за ' + totalNet + ' зол. (без налога)',
+    );
   };
 
   const getMaxBuyQty = (itemId: ItemId): number => {
@@ -144,10 +157,11 @@ export function MarketPanel({
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
-        Рынок: можно продавать и покупать.
+        {owned
+          ? 'Ваш рынок. Продажа без городского налога.'
+          : 'Рынок: можно продавать и покупать.'}
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2">
         <button
           type="button"
@@ -178,7 +192,8 @@ export function MarketPanel({
       {tab === 'sell' && (
         <>
           <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-            Налог города: <strong>{Math.round(MARKET_TAX_RATE * 100)}%</strong>
+            Налог: <strong>{Math.round(taxRate * 100)}%</strong>
+            {owned && ' (ваш рынок)'}
           </div>
 
           {sellableItems.length === 0 ? (
@@ -198,7 +213,7 @@ export function MarketPanel({
                 {sellableItems.map((itemId) => {
                   const amount = getAmount(itemId);
                   const unitPrice = SELL_PRICES[itemId] ?? 0;
-                  const netOne = unitPrice - Math.floor(unitPrice * MARKET_TAX_RATE);
+                  const netOne = unitPrice - Math.floor(unitPrice * taxRate);
                   const def = ITEMS[itemId];
 
                   return (
