@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { useDailyLimits } from '@/hooks/useDailyLimits';
+import { useOwnership } from '@/hooks/useOwnership';
 import { FORGE_CONFIG } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { BusyBar } from './BusyBar';
 import { QtyControl } from './QtyControl';
+
+const FORGE_BUILDING_ID = 'iron-spark';
 
 type ForgeActionId = keyof typeof FORGE_CONFIG.actions;
 
@@ -26,6 +29,8 @@ function labelItem(id: ItemId): string {
 export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
   const { add, remove, has, getAmount } = useInventory();
   const { forgeFreeLeft, useForgeAction } = useDailyLimits();
+  const { isOwned } = useOwnership();
+  const owned = isOwned(FORGE_BUILDING_ID);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -68,6 +73,8 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     const byRes = Math.floor(getAmount(action.input.itemId) / action.input.amount);
     if (byRes <= 0) return 0;
 
+    if (owned) return byRes; // своя кузница — только лимит ресурсов
+
     let max = 0;
     let freeLeft = forgeFreeLeft;
     let goldLeft = gold;
@@ -99,9 +106,12 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
       return;
     }
 
-    const freeUsed = Math.min(qty, forgeFreeLeft);
-    const paid = qty - freeUsed;
-    const cost = paid * action.cost;
+    let cost = 0;
+    if (!owned) {
+      const freeUsed = Math.min(qty, forgeFreeLeft);
+      const paid = qty - freeUsed;
+      cost = paid * action.cost;
+    }
 
     if (cost > gold) {
       onNotice('Недостаточно золота');
@@ -113,7 +123,9 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     }
 
     if (cost > 0) onSpendGold(cost);
-    for (let i = 0; i < qty; i++) useForgeAction();
+    if (!owned) {
+      for (let i = 0; i < qty; i++) useForgeAction();
+    }
     remove(action.input.itemId, action.input.amount * qty);
 
     runTimedAction(
@@ -133,20 +145,27 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
-        Выбери количество крафта.
+        {owned
+          ? 'Ваша кузница. Крафт без платы золотом — только ресурсы.'
+          : 'Выбери количество крафта.'}
       </div>
-      <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
-        Бесплатных действий: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
-      </div>
+      {!owned && (
+        <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
+          Бесплатных действий: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
+        </div>
+      )}
 
       <div className="space-y-3">
         {forgeActions.map((action) => {
           const maxQty = getForgeMaxQty(action.id as ForgeActionId);
           const rawQty = forgeQty[action.id] ?? 1;
           const qty = Math.min(Math.max(1, rawQty), Math.max(1, maxQty));
-          const freeUsed = Math.min(qty, forgeFreeLeft);
-          const paid = Math.max(0, qty - freeUsed);
-          const cost = paid * action.cost;
+          let cost = 0;
+          if (!owned) {
+            const freeUsed = Math.min(qty, forgeFreeLeft);
+            const paid = Math.max(0, qty - freeUsed);
+            cost = paid * action.cost;
+          }
           const thisBusy = busyId === action.id;
 
           return (
