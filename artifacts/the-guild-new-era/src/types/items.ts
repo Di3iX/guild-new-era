@@ -1,15 +1,14 @@
-/** Unique item identifiers */
 export type ItemId =
   | 'iron_ore'
   | 'iron'
   | 'nails'
   | 'horseshoe'
-  | 'simple_sword';
+  | 'simple_sword'
+  | 'wood'
+  | 'coal';
 
-/** Item category for filtering and UI */
 export type ItemCategory = 'resource' | 'material' | 'product';
 
-/** Static definition of an item */
 export interface ItemDefinition {
   id: ItemId;
   name: string;
@@ -19,5 +18,4 @@ export interface ItemDefinition {
   maxStack?: number;
 }
 
-/** Runtime inventory: item id → quantity */
 export type InventoryItems = Partial<Record<ItemId, number>>;
