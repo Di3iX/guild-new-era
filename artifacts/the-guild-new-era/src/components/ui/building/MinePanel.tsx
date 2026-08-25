@@ -26,7 +26,6 @@ export function MinePanel({ gold, onSpendGold, onNotice }: MinePanelProps) {
   const [busyLabel, setBusyLabel] = useState('');
   const [mineQty, setMineQty] = useState(1);
 
-  // Если своя шахта — добыча без платы золотом, лимит только по желанию игрока (до 20 за раз)
   const maxMineQty = useMemo(() => {
     if (owned) return 20;
     const paidPossible = Math.floor(gold / MINE_CONFIG.digCost);
@@ -82,13 +81,24 @@ export function MinePanel({ gold, onSpendGold, onNotice }: MinePanelProps) {
 
     runTimedAction(MINE_CONFIG.digDurationSec * qty, 'Добыча x' + qty + '...', () => {
       let totalOre = 0;
+      let totalCoal = 0;
       for (let i = 0; i < qty; i++) {
         totalOre +=
           MINE_CONFIG.oreMin +
           Math.floor(Math.random() * (MINE_CONFIG.oreMax - MINE_CONFIG.oreMin + 1));
+        if (Math.random() < MINE_CONFIG.coalChance) {
+          totalCoal +=
+            MINE_CONFIG.coalMin +
+            Math.floor(Math.random() * (MINE_CONFIG.coalMax - MINE_CONFIG.coalMin + 1));
+        }
       }
       add('iron_ore', totalOre);
-      onNotice('Получено: ' + totalOre + ' Железной руды (x' + qty + ')');
+      if (totalCoal > 0) add('coal', totalCoal);
+
+      let msg = 'Получено: ' + totalOre + ' руды';
+      if (totalCoal > 0) msg += ', ' + totalCoal + ' угля';
+      msg += ' (x' + qty + ')';
+      onNotice(msg);
       setMineQty(1);
     });
   };
@@ -97,8 +107,8 @@ export function MinePanel({ gold, onSpendGold, onNotice }: MinePanelProps) {
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
         {owned
-          ? 'Ваша шахта. Добыча без платы золотом.'
-          : 'Выбери, сколько раз добывать.'}
+          ? 'Ваша шахта. Добыча без платы. Иногда попадается уголь.'
+          : 'Добыча руды. Иногда попадается уголь.'}
       </div>
       <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
         {owned ? (
