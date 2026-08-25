@@ -14,6 +14,8 @@ const SELL_PRICES: Partial<Record<ItemId, number>> = {
   nails: 4,
   horseshoe: 30,
   simple_sword: 50,
+  wood: 2,
+  coal: 4,
 };
 
 const BUY_PRICES: Partial<Record<ItemId, number>> = {
@@ -22,9 +24,19 @@ const BUY_PRICES: Partial<Record<ItemId, number>> = {
   nails: 7,
   horseshoe: 45,
   simple_sword: 75,
+  wood: 4,
+  coal: 6,
 };
 
-const BUYABLE_ITEMS: ItemId[] = ['iron_ore', 'iron', 'nails', 'horseshoe', 'simple_sword'];
+const BUYABLE_ITEMS: ItemId[] = [
+  'iron_ore',
+  'iron',
+  'coal',
+  'wood',
+  'nails',
+  'horseshoe',
+  'simple_sword',
+];
 
 function labelItem(id: ItemId): string {
   if (id === 'iron_ore') return 'Руда';
@@ -32,6 +44,8 @@ function labelItem(id: ItemId): string {
   if (id === 'nails') return 'Гвозди';
   if (id === 'horseshoe') return 'Подкова';
   if (id === 'simple_sword') return 'Меч';
+  if (id === 'wood') return 'Дерево';
+  if (id === 'coal') return 'Уголь';
   return id;
 }
 
@@ -193,7 +207,7 @@ export function MarketPanel({
         <>
           <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
             Налог: <strong>{Math.round(taxRate * 100)}%</strong>
-            {owned && ' (ваш рынок)'}
+            {owned ? ' (ваш рынок)' : ''}
           </div>
 
           {sellableItems.length === 0 ? (
@@ -207,7 +221,7 @@ export function MarketPanel({
                 onClick={handleSellAll}
                 className="flex w-full items-center justify-center rounded-xl bg-[#36564b] px-3 py-3 text-sm font-bold text-[#f5edcf]"
               >
-                Продать всё (~{totalSellNet} зол.)
+                Продать всё (\~{totalSellNet} зол.)
               </button>
               <div className="space-y-2">
                 {sellableItems.map((itemId) => {
