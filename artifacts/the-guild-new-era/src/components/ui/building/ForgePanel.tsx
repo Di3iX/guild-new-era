@@ -23,7 +23,18 @@ function labelItem(id: ItemId): string {
   if (id === 'nails') return 'Гвозди';
   if (id === 'horseshoe') return 'Подкова';
   if (id === 'simple_sword') return 'Меч';
+  if (id === 'wood') return 'Дерево';
+  if (id === 'coal') return 'Уголь';
   return id;
+}
+
+type ActionDef = (typeof FORGE_CONFIG.actions)[ForgeActionId];
+
+function getExtra(action: ActionDef): { itemId: ItemId; amount: number } | null {
+  if ('extra' in action && action.extra) {
+    return action.extra as { itemId: ItemId; amount: number };
+  }
+  return null;
 }
 
 export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
@@ -70,10 +81,14 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
 
   const getForgeMaxQty = (actionId: ForgeActionId): number => {
     const action = FORGE_CONFIG.actions[actionId];
-    const byRes = Math.floor(getAmount(action.input.itemId) / action.input.amount);
+    let byRes = Math.floor(getAmount(action.input.itemId) / action.input.amount);
+    const extra = getExtra(action);
+    if (extra) {
+      byRes = Math.min(byRes, Math.floor(getAmount(extra.itemId) / extra.amount));
+    }
     if (byRes <= 0) return 0;
 
-    if (owned) return byRes; // своя кузница — только лимит ресурсов
+    if (owned) return byRes;
 
     let max = 0;
     let freeLeft = forgeFreeLeft;
@@ -100,6 +115,7 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     const maxQty = getForgeMaxQty(actionId);
     const rawQty = forgeQty[actionId] ?? 1;
     const qty = Math.min(Math.max(1, rawQty), maxQty);
+    const extra = getExtra(action);
 
     if (qty <= 0 || maxQty <= 0) {
       onNotice('Недостаточно ресурсов или золота');
@@ -109,8 +125,7 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     let cost = 0;
     if (!owned) {
       const freeUsed = Math.min(qty, forgeFreeLeft);
-      const paid = qty - freeUsed;
-      cost = paid * action.cost;
+      cost = (qty - freeUsed) * action.cost;
     }
 
     if (cost > gold) {
@@ -121,12 +136,17 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
       onNotice('Недостаточно ресурсов');
       return;
     }
+    if (extra && !has(extra.itemId, extra.amount * qty)) {
+      onNotice('Недостаточно ' + labelItem(extra.itemId).toLowerCase());
+      return;
+    }
 
     if (cost > 0) onSpendGold(cost);
     if (!owned) {
       for (let i = 0; i < qty; i++) useForgeAction();
     }
     remove(action.input.itemId, action.input.amount * qty);
+    if (extra) remove(extra.itemId, extra.amount * qty);
 
     runTimedAction(
       actionId,
@@ -146,8 +166,8 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
         {owned
-          ? 'Ваша кузница. Крафт без платы золотом — только ресурсы.'
-          : 'Выбери количество крафта.'}
+          ? 'Ваша кузница. Крафт без платы золотом.'
+          : 'Для плавки нужны руда и уголь.'}
       </div>
       {!owned && (
         <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
@@ -163,10 +183,24 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
           let cost = 0;
           if (!owned) {
             const freeUsed = Math.min(qty, forgeFreeLeft);
-            const paid = Math.max(0, qty - freeUsed);
-            cost = paid * action.cost;
+            cost = Math.max(0, qty - freeUsed) * action.cost;
           }
           const thisBusy = busyId === action.id;
+          const extra = getExtra(action);
+
+          let needText =
+            action.input.amount +
+            ' x ' +
+            labelItem(action.input.itemId);
+          if (extra) {
+            needText +=
+              ' + ' + extra.amount + ' x ' + labelItem(extra.itemId);
+          }
+          needText +=
+            ' -> ' +
+            action.output.amount +
+            ' x ' +
+            labelItem(action.output.itemId);
 
           return (
             <div
@@ -178,11 +212,10 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
                 <span className="text-[11px] text-[#79684d]">макс. {maxQty}</span>
               </div>
               <div className="mt-0.5 text-[11px] text-[#6b5b4f]">
-                Нужно: {action.input.amount} x {labelItem(action.input.itemId)}
-                {' -> '}
-                {action.output.amount} x {labelItem(action.output.itemId)}
+                {needText}
                 {' | у тебя: '}
                 {getAmount(action.input.itemId)}
+                {extra ? ' / ' + getAmount(extra.itemId) : ''}
               </div>
 
               {thisBusy ? (
