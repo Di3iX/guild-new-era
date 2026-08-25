@@ -6,6 +6,7 @@ import {
   ShoppingBasket,
 } from 'lucide-react';
 import type { BuildingData } from '@/types/game';
+import { useOwnership } from '@/hooks/useOwnership';
 import { MinePanel } from '@/components/ui/building/MinePanel';
 import { ForgePanel } from '@/components/ui/building/ForgePanel';
 import { MarketPanel } from '@/components/ui/building/MarketPanel';
@@ -38,9 +39,12 @@ export function BuildingCard({
   onNotice,
   onAddGold,
 }: BuildingCardProps) {
+  const { isOwned } = useOwnership();
   const Icon = selectedBuilding ? buildingIcons[selectedBuilding.type] : House;
   const isAtBuilding =
     !!selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
+  const selectedOwned = selectedBuilding ? isOwned(selectedBuilding.id) : false;
+  const nearbyOwned = nearbyBuilding ? isOwned(nearbyBuilding.id) : false;
 
   return (
     <>
@@ -59,6 +63,11 @@ export function BuildingCard({
               <span>
                 <span className="block font-mono text-[9px] uppercase tracking-[.18em] text-[#d7c879]">
                   Рядом
+                  {nearbyOwned && (
+                    <span className="ml-2 rounded bg-[#f1d275] px-1.5 py-0.5 text-[8px] font-bold text-[#3a3023]">
+                      ВАШЕ
+                    </span>
+                  )}
                 </span>
                 <span className="font-serif text-sm font-bold">{nearbyBuilding.name}</span>
               </span>
@@ -87,8 +96,15 @@ export function BuildingCard({
               <Icon size={21} />
             </div>
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-[.18em] text-[#9b7440]">
-                {selectedBuilding.type === 'house' ? 'Жилой квартал' : 'Городское дело'}
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[.18em] text-[#9b7440]">
+                <span>
+                  {selectedBuilding.type === 'house' ? 'Жилой квартал' : 'Городское дело'}
+                </span>
+                {selectedOwned && (
+                  <span className="rounded-md bg-[#36564b] px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-[#e8d38c]">
+                    Ваше
+                  </span>
+                )}
               </div>
               <h2 className="mt-0.5 font-serif text-lg font-bold">{selectedBuilding.name}</h2>
               <p className="text-xs text-[#81745d]">{selectedBuilding.description}</p>
