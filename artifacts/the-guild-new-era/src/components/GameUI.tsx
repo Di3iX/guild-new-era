@@ -99,6 +99,9 @@ export function GameUI({
 
       {activeTab === 'business' && (
         <BusinessPanel
+          gold={gold}
+          onSpendGold={onSpendGold}
+          onNotice={onNotice}
           onReturn={() => onTabChange('city')}
           onClose={() => onTabChange('city')}
         />
