@@ -2,6 +2,7 @@ import { ArrowUpRight, CircleHelp, UserRound } from 'lucide-react';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { BuildingCard } from '@/components/ui/BuildingCard';
 import { CharacterPanel } from '@/components/ui/CharacterPanel';
+import { BusinessPanel } from '@/components/ui/BusinessPanel';
 import { TopBar } from '@/components/ui/TopBar';
 import type { BuildingData, MapPoint } from '@/types/game';
 import type { NavKey } from '@/types/navigation';
@@ -43,8 +44,6 @@ export function GameUI({
   onAddGold,
   onNotice,
 }: GameUIProps) {
-  const isPrototypeTab = activeTab !== 'city';
-
   return (
     <div className="pointer-events-none absolute inset-0 z-10 text-[#35291d]">
       <TopBar
@@ -90,17 +89,24 @@ export function GameUI({
         onNotice={onNotice}
       />
 
-      {isPrototypeTab && (
+      {activeTab === 'character' && (
         <CharacterPanel
-          label={
-            activeTab === 'character'
-              ? 'Персонаж'
-              : activeTab === 'business'
-                ? 'Бизнес'
-                : activeTab === 'market'
-                  ? 'Рынок'
-                  : 'Семья'
-          }
+          label="Персонаж"
+          onReturn={() => onTabChange('city')}
+          onClose={() => onTabChange('city')}
+        />
+      )}
+
+      {activeTab === 'business' && (
+        <BusinessPanel
+          onReturn={() => onTabChange('city')}
+          onClose={() => onTabChange('city')}
+        />
+      )}
+
+      {(activeTab === 'market' || activeTab === 'family') && (
+        <CharacterPanel
+          label={activeTab === 'market' ? 'Рынок' : 'Семья'}
           onReturn={() => onTabChange('city')}
           onClose={() => onTabChange('city')}
         />
