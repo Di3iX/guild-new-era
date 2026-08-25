@@ -107,7 +107,12 @@ export function BuildingCard({
           )}
 
           {isAtBuilding && selectedBuilding.type === 'market' && (
-            <MarketPanel onAddGold={onAddGold} onNotice={onNotice} />
+            <MarketPanel
+              gold={gold}
+              onSpendGold={onSpendGold}
+              onAddGold={onAddGold}
+              onNotice={onNotice}
+            />
           )}
 
           {isAtBuilding &&
