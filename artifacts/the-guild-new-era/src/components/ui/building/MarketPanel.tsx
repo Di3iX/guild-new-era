@@ -207,7 +207,7 @@ export function MarketPanel({
                 onClick={handleSellAll}
                 className="flex w-full items-center justify-center rounded-xl bg-[#36564b] px-3 py-3 text-sm font-bold text-[#f5edcf]"
               >
-                Продать всё (\~{totalSellNet} зол.)
+                Продать всё (~{totalSellNet} зол.)
               </button>
               <div className="space-y-2">
                 {sellableItems.map((itemId) => {
