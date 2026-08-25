@@ -1,15 +1,12 @@
-/** Production & economy config for the first gameplay loop */
-
 export const MINE_CONFIG = {
-  /** Free digs per day */
   freeDigsPerDay: 5,
-  /** Gold cost after free digs are used */
   digCost: 3,
-  /** Seconds for one dig action */
   digDurationSec: 9,
-  /** Ore amount range per dig (before any future modifiers) */
   oreMin: 4,
   oreMax: 6,
+  coalChance: 0.45,
+  coalMin: 1,
+  coalMax: 2,
 } as const;
 
 export const FORGE_CONFIG = {
@@ -19,6 +16,7 @@ export const FORGE_CONFIG = {
       id: 'smelt',
       name: 'Переплавить руду',
       input: { itemId: 'iron_ore' as const, amount: 3 },
+      extra: { itemId: 'coal' as const, amount: 1 },
       output: { itemId: 'iron' as const, amount: 1 },
       durationSec: 7,
       cost: 2,
@@ -50,4 +48,4 @@ export const FORGE_CONFIG = {
   },
 } as const;
 
-export const MARKET_TAX_RATE = 0.1; // 10%
+export const MARKET_TAX_RATE = 0.1;
