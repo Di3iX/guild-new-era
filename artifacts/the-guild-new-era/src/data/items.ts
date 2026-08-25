@@ -1,11 +1,10 @@
 import type { ItemDefinition, ItemId } from '@/types/items';
 
-/** All item definitions for the first production chain */
 export const ITEMS: Record<ItemId, ItemDefinition> = {
   iron_ore: {
     id: 'iron_ore',
     name: 'Железная руда',
-    description: 'Сырая руда, добытая в шахте. Можно переплавить в железо.',
+    description: 'Сырая руда из шахты.',
     category: 'resource',
     stackable: true,
     maxStack: 999,
@@ -13,7 +12,7 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
   iron: {
     id: 'iron',
     name: 'Железо',
-    description: 'Переплавленная руда. Используется для создания простых предметов.',
+    description: 'Переплавленная руда.',
     category: 'material',
     stackable: true,
     maxStack: 999,
@@ -21,7 +20,7 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
   nails: {
     id: 'nails',
     name: 'Гвозди',
-    description: 'Простые железные гвозди. Всегда нужны в хозяйстве.',
+    description: 'Простые железные гвозди.',
     category: 'product',
     stackable: true,
     maxStack: 999,
@@ -37,14 +36,29 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
   simple_sword: {
     id: 'simple_sword',
     name: 'Простой меч',
-    description: 'Незамысловатый, но крепкий меч из железа.',
+    description: 'Меч из железа.',
     category: 'product',
     stackable: true,
     maxStack: 20,
   },
+  wood: {
+    id: 'wood',
+    name: 'Дерево',
+    description: 'Строительный лес. Пока только с рынка.',
+    category: 'resource',
+    stackable: true,
+    maxStack: 999,
+  },
+  coal: {
+    id: 'coal',
+    name: 'Уголь',
+    description: 'Нужен для плавки руды.',
+    category: 'resource',
+    stackable: true,
+    maxStack: 999,
+  },
 };
 
-/** Helper to get item definition safely */
 export function getItemDef(id: ItemId): ItemDefinition {
   return ITEMS[id];
 }
