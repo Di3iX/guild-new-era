@@ -5,7 +5,8 @@ export type ItemId =
   | 'horseshoe'
   | 'simple_sword'
   | 'wood'
-  | 'coal';
+  | 'coal'
+  | 'wooden_shield';
 
 export type ItemCategory = 'resource' | 'material' | 'product';
 
