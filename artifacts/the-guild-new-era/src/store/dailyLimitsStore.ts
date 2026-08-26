@@ -1,12 +1,10 @@
-/** Tracks free daily actions for city buildings (mine, forge, etc.) */
-
 type Listener = () => void;
 
 interface DailyLimitsState {
-  /** Date string YYYY-MM-DD of the last reset */
   date: string;
   mineDigsUsed: number;
   forgeActionsUsed: number;
+  forestChopsUsed: number;
 }
 
 function todayKey(): string {
@@ -16,14 +14,21 @@ function todayKey(): string {
 function load(): DailyLimitsState {
   try {
     const raw = localStorage.getItem('guild-daily-limits');
-    if (!raw) return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0 };
-    const parsed = JSON.parse(raw) as DailyLimitsState;
-    if (parsed.date !== todayKey()) {
-      return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0 };
+    if (!raw) {
+      return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
     }
-    return parsed;
+    const parsed = JSON.parse(raw) as Partial<DailyLimitsState>;
+    if (parsed.date !== todayKey()) {
+      return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
+    }
+    return {
+      date: parsed.date ?? todayKey(),
+      mineDigsUsed: parsed.mineDigsUsed ?? 0,
+      forgeActionsUsed: parsed.forgeActionsUsed ?? 0,
+      forestChopsUsed: parsed.forestChopsUsed ?? 0,
+    };
   } catch {
-    return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0 };
+    return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
   }
 }
 
@@ -44,7 +49,7 @@ function emit() {
 
 function ensureToday() {
   if (state.date !== todayKey()) {
-    state = { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0 };
+    state = { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
     save();
   }
 }
@@ -70,6 +75,11 @@ export const dailyLimitsStore = {
     return state.forgeActionsUsed;
   },
 
+  getForestChopsUsed() {
+    ensureToday();
+    return state.forestChopsUsed;
+  },
+
   useMineDig() {
     ensureToday();
     state = { ...state, mineDigsUsed: state.mineDigsUsed + 1 };
@@ -80,6 +90,13 @@ export const dailyLimitsStore = {
   useForgeAction() {
     ensureToday();
     state = { ...state, forgeActionsUsed: state.forgeActionsUsed + 1 };
+    save();
+    emit();
+  },
+
+  useForestChop() {
+    ensureToday();
+    state = { ...state, forestChopsUsed: state.forestChopsUsed + 1 };
     save();
     emit();
   },
