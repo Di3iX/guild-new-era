@@ -4,12 +4,14 @@ import {
   House,
   Pickaxe,
   ShoppingBasket,
+  TreePine,
 } from 'lucide-react';
 import type { BuildingData } from '@/types/game';
 import { useOwnership } from '@/hooks/useOwnership';
 import { MinePanel } from '@/components/ui/building/MinePanel';
 import { ForgePanel } from '@/components/ui/building/ForgePanel';
 import { MarketPanel } from '@/components/ui/building/MarketPanel';
+import { ForestPanel } from '@/components/ui/building/ForestPanel';
 
 interface BuildingCardProps {
   selectedBuilding: BuildingData | null;
@@ -27,6 +29,7 @@ const buildingIcons = {
   forge: Hammer,
   mine: Pickaxe,
   market: ShoppingBasket,
+  forest: TreePine,
 };
 
 export function BuildingCard({
@@ -40,11 +43,18 @@ export function BuildingCard({
   onAddGold,
 }: BuildingCardProps) {
   const { isOwned } = useOwnership();
-  const Icon = selectedBuilding ? buildingIcons[selectedBuilding.type] : House;
+
+  const selectedType = selectedBuilding?.type ?? 'house';
+  const Icon = buildingIcons[selectedType] ?? House;
+
   const isAtBuilding =
     !!selectedBuilding && nearbyBuilding?.id === selectedBuilding.id;
   const selectedOwned = selectedBuilding ? isOwned(selectedBuilding.id) : false;
   const nearbyOwned = nearbyBuilding ? isOwned(nearbyBuilding.id) : false;
+
+  const NearbyIcon = nearbyBuilding
+    ? buildingIcons[nearbyBuilding.type] ?? House
+    : House;
 
   return (
     <>
@@ -58,7 +68,7 @@ export function BuildingCard({
           >
             <span className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1d275] text-[#38594d]">
-                <Icon size={18} />
+                <NearbyIcon size={18} />
               </span>
               <span>
                 <span className="block font-mono text-[9px] uppercase tracking-[.18em] text-[#d7c879]">
@@ -98,7 +108,11 @@ export function BuildingCard({
             <div>
               <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[.18em] text-[#9b7440]">
                 <span>
-                  {selectedBuilding.type === 'house' ? 'Жилой квартал' : 'Городское дело'}
+                  {selectedBuilding.type === 'house'
+                    ? 'Жилой квартал'
+                    : selectedBuilding.type === 'forest'
+                      ? 'Природный ресурс'
+                      : 'Городское дело'}
                 </span>
                 {selectedOwned && (
                   <span className="rounded-md bg-[#36564b] px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-[#e8d38c]">
@@ -131,10 +145,15 @@ export function BuildingCard({
             />
           )}
 
+          {isAtBuilding && selectedBuilding.type === 'forest' && (
+            <ForestPanel gold={gold} onSpendGold={onSpendGold} onNotice={onNotice} />
+          )}
+
           {isAtBuilding &&
             selectedBuilding.type !== 'mine' &&
             selectedBuilding.type !== 'forge' &&
-            selectedBuilding.type !== 'market' && (
+            selectedBuilding.type !== 'market' &&
+            selectedBuilding.type !== 'forest' && (
               <div className="mt-4 space-y-2">
                 <button
                   type="button"
