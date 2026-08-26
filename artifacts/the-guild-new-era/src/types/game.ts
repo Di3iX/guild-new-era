@@ -1,4 +1,4 @@
-export type BuildingType = 'house' | 'forge' | 'mine' | 'market';
+export type BuildingType = 'house' | 'forge' | 'mine' | 'market' | 'forest';
 
 export interface MapPoint {
   x: number;
