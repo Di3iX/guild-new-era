@@ -16,6 +16,7 @@ const SELL_PRICES: Partial<Record<ItemId, number>> = {
   simple_sword: 50,
   wood: 2,
   coal: 4,
+  wooden_shield: 40,
 };
 
 const BUY_PRICES: Partial<Record<ItemId, number>> = {
@@ -26,6 +27,7 @@ const BUY_PRICES: Partial<Record<ItemId, number>> = {
   simple_sword: 75,
   wood: 4,
   coal: 6,
+  wooden_shield: 60,
 };
 
 const BUYABLE_ITEMS: ItemId[] = [
@@ -36,6 +38,7 @@ const BUYABLE_ITEMS: ItemId[] = [
   'nails',
   'horseshoe',
   'simple_sword',
+  'wooden_shield',
 ];
 
 function labelItem(id: ItemId): string {
@@ -46,6 +49,7 @@ function labelItem(id: ItemId): string {
   if (id === 'simple_sword') return 'Меч';
   if (id === 'wood') return 'Дерево';
   if (id === 'coal') return 'Уголь';
+  if (id === 'wooden_shield') return 'Щит';
   return id;
 }
 
