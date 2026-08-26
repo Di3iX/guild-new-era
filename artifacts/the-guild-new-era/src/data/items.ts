@@ -44,7 +44,7 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
   wood: {
     id: 'wood',
     name: 'Дерево',
-    description: 'Строительный лес. Пока только с рынка.',
+    description: 'Строительный лес. Можно добыть в лесу или купить на рынке.',
     category: 'resource',
     stackable: true,
     maxStack: 999,
@@ -56,6 +56,14 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
     category: 'resource',
     stackable: true,
     maxStack: 999,
+  },
+  wooden_shield: {
+    id: 'wooden_shield',
+    name: 'Деревянный щит',
+    description: 'Щит из дерева, укреплённый железом.',
+    category: 'product',
+    stackable: true,
+    maxStack: 20,
   },
 };
 
