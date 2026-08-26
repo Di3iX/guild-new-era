@@ -65,21 +65,6 @@ export const dailyLimitsStore = {
     return state;
   },
 
-  getMineDigsUsed() {
-    ensureToday();
-    return state.mineDigsUsed;
-  },
-
-  getForgeActionsUsed() {
-    ensureToday();
-    return state.forgeActionsUsed;
-  },
-
-  getForestChopsUsed() {
-    ensureToday();
-    return state.forestChopsUsed;
-  },
-
   useMineDig() {
     ensureToday();
     state = { ...state, mineDigsUsed: state.mineDigsUsed + 1 };
