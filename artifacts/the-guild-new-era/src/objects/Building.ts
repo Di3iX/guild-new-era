@@ -89,6 +89,8 @@ export class Building {
       return { wall: 0x665c52, trim: 0x504940, roof: 0x3f4440, detail: 0x312f2a };
     if (type === 'market')
       return { wall: 0xb48452, trim: 0x7b5a3c, roof: 0x4b675b, detail: 0x754333 };
+    if (type === 'forest')
+      return { wall: 0x5a7a4a, trim: 0x3f5c35, roof: 0x2f4a28, detail: 0x3a5230 };
     return { wall: 0x9b6e52, trim: 0x765039, roof: 0x574a48, detail: 0x52362d };
   }
 }
