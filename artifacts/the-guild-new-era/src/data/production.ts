@@ -9,6 +9,14 @@ export const MINE_CONFIG = {
   coalMax: 2,
 } as const;
 
+export const FOREST_CONFIG = {
+  freeChopsPerDay: 5,
+  chopCost: 2,
+  chopDurationSec: 7,
+  woodMin: 3,
+  woodMax: 5,
+} as const;
+
 export const FORGE_CONFIG = {
   freeActionsPerDay: 5,
   actions: {
@@ -44,6 +52,15 @@ export const FORGE_CONFIG = {
       output: { itemId: 'simple_sword' as const, amount: 1 },
       durationSec: 12,
       cost: 4,
+    },
+    wooden_shield: {
+      id: 'wooden_shield',
+      name: 'Сделать деревянный щит',
+      input: { itemId: 'wood' as const, amount: 3 },
+      extra: { itemId: 'iron' as const, amount: 1 },
+      output: { itemId: 'wooden_shield' as const, amount: 1 },
+      durationSec: 10,
+      cost: 3,
     },
   },
 } as const;
