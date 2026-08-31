@@ -14,6 +14,7 @@ import { ForgePanel } from '@/components/ui/building/ForgePanel';
 import { MarketPanel } from '@/components/ui/building/MarketPanel';
 import { ForestPanel } from '@/components/ui/building/ForestPanel';
 import { CarpentryPanel } from '@/components/ui/building/CarpentryPanel';
+import { HousePanel } from '@/components/ui/building/HousePanel';
 
 interface BuildingCardProps {
   selectedBuilding: BuildingData | null;
@@ -157,12 +158,17 @@ export function BuildingCard({
             <CarpentryPanel gold={gold} onSpendGold={onSpendGold} onNotice={onNotice} />
           )}
 
+          {isAtBuilding && selectedBuilding.type === 'house' && (
+            <HousePanel onNotice={onNotice} />
+          )}
+
           {isAtBuilding &&
             selectedBuilding.type !== 'mine' &&
             selectedBuilding.type !== 'forge' &&
             selectedBuilding.type !== 'market' &&
             selectedBuilding.type !== 'forest' &&
-            selectedBuilding.type !== 'carpentry' && (
+            selectedBuilding.type !== 'carpentry' &&
+            selectedBuilding.type !== 'house' && (
               <div className="mt-4 space-y-2">
                 <button
                   type="button"
