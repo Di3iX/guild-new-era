@@ -1,4 +1,11 @@
-import { Hammer, House, Pickaxe, ShoppingBasket } from 'lucide-react';
+import {
+  Axe,
+  Hammer,
+  House,
+  Pickaxe,
+  ShoppingBasket,
+  TreePine,
+} from 'lucide-react';
 import { BUILDINGS } from '@/config/cityData';
 import { useOwnership } from '@/hooks/useOwnership';
 
@@ -7,6 +14,8 @@ const icons = {
   forge: Hammer,
   mine: Pickaxe,
   market: ShoppingBasket,
+  forest: TreePine,
+  carpentry: Axe,
 };
 
 const typeLabel: Record<string, string> = {
@@ -14,13 +23,16 @@ const typeLabel: Record<string, string> = {
   forge: 'Производство',
   mine: 'Добыча',
   market: 'Торговля',
+  forest: 'Лес',
+  carpentry: 'Столярка',
 };
 
-/** Цена покупки предприятия */
 const BUY_PRICES: Record<string, number> = {
-  'iron-spark': 400,   // Кузница
-  'north-mine': 350,   // Шахта
-  'river-market': 500, // Рынок
+  'iron-spark': 400,
+  'north-mine': 350,
+  'river-market': 500,
+  'south-forest': 300,
+  'oak-workshop': 380,
 };
 
 interface BusinessPanelProps {
