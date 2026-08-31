@@ -3,6 +3,8 @@ import { BottomNav } from '@/components/ui/BottomNav';
 import { BuildingCard } from '@/components/ui/BuildingCard';
 import { CharacterPanel } from '@/components/ui/CharacterPanel';
 import { BusinessPanel } from '@/components/ui/BusinessPanel';
+import { MarketTabPanel } from '@/components/ui/MarketTabPanel';
+import { FamilyPanel } from '@/components/ui/FamilyPanel';
 import { TopBar } from '@/components/ui/TopBar';
 import type { BuildingData, MapPoint } from '@/types/game';
 import type { NavKey } from '@/types/navigation';
@@ -107,9 +109,20 @@ export function GameUI({
         />
       )}
 
-      {(activeTab === 'market' || activeTab === 'family') && (
-        <CharacterPanel
-          label={activeTab === 'market' ? 'Рынок' : 'Семья'}
+      {activeTab === 'market' && (
+        <MarketTabPanel
+          gold={gold}
+          onSpendGold={onSpendGold}
+          onAddGold={onAddGold}
+          onNotice={onNotice}
+          onReturn={() => onTabChange('city')}
+          onClose={() => onTabChange('city')}
+        />
+      )}
+
+      {activeTab === 'family' && (
+        <FamilyPanel
+          onNotice={onNotice}
           onReturn={() => onTabChange('city')}
           onClose={() => onTabChange('city')}
         />
