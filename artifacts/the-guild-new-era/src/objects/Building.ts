@@ -91,6 +91,8 @@ export class Building {
       return { wall: 0xb48452, trim: 0x7b5a3c, roof: 0x4b675b, detail: 0x754333 };
     if (type === 'forest')
       return { wall: 0x5a7a4a, trim: 0x3f5c35, roof: 0x2f4a28, detail: 0x3a5230 };
+    if (type === 'carpentry')
+      return { wall: 0x8b6a45, trim: 0x6a4f35, roof: 0x4a3a2a, detail: 0x3d2e22 };
     return { wall: 0x9b6e52, trim: 0x765039, roof: 0x574a48, detail: 0x52362d };
   }
 }
