@@ -5,30 +5,38 @@ interface DailyLimitsState {
   mineDigsUsed: number;
   forgeActionsUsed: number;
   forestChopsUsed: number;
+  carpentryActionsUsed: number;
 }
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function emptyState(): DailyLimitsState {
+  return {
+    date: todayKey(),
+    mineDigsUsed: 0,
+    forgeActionsUsed: 0,
+    forestChopsUsed: 0,
+    carpentryActionsUsed: 0,
+  };
+}
+
 function load(): DailyLimitsState {
   try {
     const raw = localStorage.getItem('guild-daily-limits');
-    if (!raw) {
-      return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
-    }
+    if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<DailyLimitsState>;
-    if (parsed.date !== todayKey()) {
-      return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
-    }
+    if (parsed.date !== todayKey()) return emptyState();
     return {
       date: parsed.date ?? todayKey(),
       mineDigsUsed: parsed.mineDigsUsed ?? 0,
       forgeActionsUsed: parsed.forgeActionsUsed ?? 0,
       forestChopsUsed: parsed.forestChopsUsed ?? 0,
+      carpentryActionsUsed: parsed.carpentryActionsUsed ?? 0,
     };
   } catch {
-    return { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
+    return emptyState();
   }
 }
 
@@ -49,7 +57,7 @@ function emit() {
 
 function ensureToday() {
   if (state.date !== todayKey()) {
-    state = { date: todayKey(), mineDigsUsed: 0, forgeActionsUsed: 0, forestChopsUsed: 0 };
+    state = emptyState();
     save();
   }
 }
@@ -82,6 +90,13 @@ export const dailyLimitsStore = {
   useForestChop() {
     ensureToday();
     state = { ...state, forestChopsUsed: state.forestChopsUsed + 1 };
+    save();
+    emit();
+  },
+
+  useCarpentryAction() {
+    ensureToday();
+    state = { ...state, carpentryActionsUsed: state.carpentryActionsUsed + 1 };
     save();
     emit();
   },
