@@ -53,6 +53,12 @@ export const FORGE_CONFIG = {
       durationSec: 12,
       cost: 4,
     },
+  },
+} as const;
+
+export const CARPENTRY_CONFIG = {
+  freeActionsPerDay: 5,
+  actions: {
     wooden_shield: {
       id: 'wooden_shield',
       name: 'Сделать деревянный щит',
