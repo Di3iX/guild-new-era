@@ -65,7 +65,17 @@ export function GuildGameScreen() {
 
   const handleTabChange = useCallback((tab: NavKey) => {
     setActiveTab(tab);
-    if (tab !== 'city') setSelectedBuilding(null);
+    setMenuOpen(false);
+
+    if (tab === 'city') {
+      // Вернуться на карту: закрыть все панели зданий
+      setSelectedBuilding(null);
+      setNearbyBuilding(null);
+      gameActions.current?.clearFocus();
+    } else {
+      // Другие вкладки — убрать карточку здания
+      setSelectedBuilding(null);
+    }
   }, []);
 
   return (
