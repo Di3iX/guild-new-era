@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Axe,
   Hammer,
   House,
   Pickaxe,
@@ -12,6 +13,7 @@ import { MinePanel } from '@/components/ui/building/MinePanel';
 import { ForgePanel } from '@/components/ui/building/ForgePanel';
 import { MarketPanel } from '@/components/ui/building/MarketPanel';
 import { ForestPanel } from '@/components/ui/building/ForestPanel';
+import { CarpentryPanel } from '@/components/ui/building/CarpentryPanel';
 
 interface BuildingCardProps {
   selectedBuilding: BuildingData | null;
@@ -30,7 +32,15 @@ const buildingIcons = {
   mine: Pickaxe,
   market: ShoppingBasket,
   forest: TreePine,
+  carpentry: Axe,
 };
+
+function typeTitle(type: string): string {
+  if (type === 'house') return 'Жилой квартал';
+  if (type === 'forest') return 'Природный ресурс';
+  if (type === 'carpentry') return 'Мастерская';
+  return 'Городское дело';
+}
 
 export function BuildingCard({
   selectedBuilding,
@@ -107,13 +117,7 @@ export function BuildingCard({
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[.18em] text-[#9b7440]">
-                <span>
-                  {selectedBuilding.type === 'house'
-                    ? 'Жилой квартал'
-                    : selectedBuilding.type === 'forest'
-                      ? 'Природный ресурс'
-                      : 'Городское дело'}
-                </span>
+                <span>{typeTitle(selectedBuilding.type)}</span>
                 {selectedOwned && (
                   <span className="rounded-md bg-[#36564b] px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-[#e8d38c]">
                     Ваше
@@ -149,11 +153,16 @@ export function BuildingCard({
             <ForestPanel gold={gold} onSpendGold={onSpendGold} onNotice={onNotice} />
           )}
 
+          {isAtBuilding && selectedBuilding.type === 'carpentry' && (
+            <CarpentryPanel gold={gold} onSpendGold={onSpendGold} onNotice={onNotice} />
+          )}
+
           {isAtBuilding &&
             selectedBuilding.type !== 'mine' &&
             selectedBuilding.type !== 'forge' &&
             selectedBuilding.type !== 'market' &&
-            selectedBuilding.type !== 'forest' && (
+            selectedBuilding.type !== 'forest' &&
+            selectedBuilding.type !== 'carpentry' && (
               <div className="mt-4 space-y-2">
                 <button
                   type="button"
