@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { useDailyLimits } from '@/hooks/useDailyLimits';
 import { useOwnership } from '@/hooks/useOwnership';
-import { CARPENTRY_CONFIG } from '@/data/production';
+import { useBuildingLevel } from '@/hooks/useBuildingLevel';
+import { CARPENTRY_CONFIG, craftSpeedMultiplier } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { BusyBar } from './BusyBar';
 import { QtyControl } from './QtyControl';
@@ -24,9 +25,11 @@ function labelItem(id: ItemId): string {
   if (id === 'nails') return 'Гвозди';
   if (id === 'horseshoe') return 'Подкова';
   if (id === 'simple_sword') return 'Меч';
+  if (id === 'reinforced_sword') return 'Укреп. меч';
   if (id === 'wood') return 'Дерево';
   if (id === 'coal') return 'Уголь';
   if (id === 'wooden_shield') return 'Щит';
+  if (id === 'wooden_crate') return 'Ящик';
   return id;
 }
 
@@ -39,18 +42,30 @@ function getExtra(action: ActionDef): { itemId: ItemId; amount: number } | null 
   return null;
 }
 
+function getMinLevel(action: ActionDef): number {
+  if ('minLevel' in action && typeof action.minLevel === 'number') {
+    return action.minLevel;
+  }
+  return 1;
+}
+
 export function CarpentryPanel({ gold, onSpendGold, onNotice }: CarpentryPanelProps) {
   const { add, remove, has, getAmount } = useInventory();
   const { carpentryFreeLeft, useCarpentryAction } = useDailyLimits();
   const { isOwned } = useOwnership();
   const owned = isOwned(CARPENTRY_BUILDING_ID);
+  const { level } = useBuildingLevel(CARPENTRY_BUILDING_ID);
+  const effectiveLevel = owned ? level : 1;
+  const speedMul = owned ? craftSpeedMultiplier(effectiveLevel) : 1;
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [busyLabel, setBusyLabel] = useState('');
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
 
-  const actions = Object.values(CARPENTRY_CONFIG.actions);
+  const actions = Object.values(CARPENTRY_CONFIG.actions).filter(
+    (a) => getMinLevel(a) <= effectiveLevel,
+  );
   const isBusy = busyId !== null;
 
   const runTimedAction = (
@@ -109,6 +124,11 @@ export function CarpentryPanel({ gold, onSpendGold, onNotice }: CarpentryPanelPr
   const handleCraft = (actionId: CarpentryActionId) => {
     if (isBusy) return;
     const action = CARPENTRY_CONFIG.actions[actionId];
+    if (getMinLevel(action) > effectiveLevel) {
+      onNotice('Нужен уровень здания ' + getMinLevel(action));
+      return;
+    }
+
     const maxQty = getMaxQty(actionId);
     const rawQty = qtyMap[actionId] ?? 1;
     const qty = Math.min(Math.max(1, rawQty), maxQty);
@@ -145,18 +165,14 @@ export function CarpentryPanel({ gold, onSpendGold, onNotice }: CarpentryPanelPr
     remove(action.input.itemId, action.input.amount * qty);
     if (extra) remove(extra.itemId, extra.amount * qty);
 
-    runTimedAction(
-      actionId,
-      action.durationSec * qty,
-      action.name + ' x' + qty + '...',
-      () => {
-        add(action.output.itemId, action.output.amount * qty);
-        onNotice(
-          'Готово: ' + action.output.amount * qty + ' x ' + labelItem(action.output.itemId),
-        );
-        setQtyMap((prev) => ({ ...prev, [actionId]: 1 }));
-      },
-    );
+    const duration = action.durationSec * qty * speedMul;
+    runTimedAction(actionId, duration, action.name + ' x' + qty + '...', () => {
+      add(action.output.itemId, action.output.amount * qty);
+      onNotice(
+        'Готово: ' + action.output.amount * qty + ' x ' + labelItem(action.output.itemId),
+      );
+      setQtyMap((prev) => ({ ...prev, [actionId]: 1 }));
+    });
   };
 
   return (
@@ -167,7 +183,7 @@ export function CarpentryPanel({ gold, onSpendGold, onNotice }: CarpentryPanelPr
           : 'Столярные изделия из дерева и железа.'}
       </div>
       <UpgradeBlock
-        buildingId="oak-workshop"
+        buildingId={CARPENTRY_BUILDING_ID}
         gold={gold}
         onSpendGold={onSpendGold}
         onNotice={onNotice}
