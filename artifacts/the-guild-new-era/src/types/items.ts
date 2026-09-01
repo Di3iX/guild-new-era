@@ -4,9 +4,11 @@ export type ItemId =
   | 'nails'
   | 'horseshoe'
   | 'simple_sword'
+  | 'reinforced_sword'
   | 'wood'
   | 'coal'
-  | 'wooden_shield';
+  | 'wooden_shield'
+  | 'wooden_crate';
 
 export type ItemCategory = 'resource' | 'material' | 'product';
 
