@@ -27,13 +27,14 @@ const typeLabel: Record<string, string> = {
   carpentry: 'Столярка',
 };
 
+/** Только частные мастерские можно купить */
 const BUY_PRICES: Record<string, number> = {
   'iron-spark': 400,
-  'north-mine': 350,
-  'river-market': 500,
-  'south-forest': 300,
   'oak-workshop': 380,
 };
+
+/** Городская собственность — нельзя купить */
+const CITY_OWNED_IDS = new Set(['river-market', 'north-mine', 'south-forest']);
 
 interface BusinessPanelProps {
   gold: number;
@@ -54,6 +55,10 @@ export function BusinessPanel({
   const businesses = BUILDINGS.filter((b) => b.type !== 'house');
 
   const handleBuy = (id: string, name: string) => {
+    if (CITY_OWNED_IDS.has(id)) {
+      onNotice('Это городская собственность');
+      return;
+    }
     const price = BUY_PRICES[id] ?? 0;
     if (price <= 0) {
       onNotice('Это предприятие пока нельзя купить');
@@ -88,7 +93,7 @@ export function BusinessPanel({
       </div>
       <h2 className="mt-1 pr-5 font-serif text-lg font-bold">Бизнес</h2>
       <p className="mt-1 text-xs text-[#6b5b4f]">
-        Покупай предприятия и развивай своё дело.
+        Мастерские можно купить. Шахта, лес и рынок — городские.
       </p>
 
       <div className="mt-4 space-y-2">
@@ -96,7 +101,8 @@ export function BusinessPanel({
           const Icon = icons[b.type] ?? House;
           const owned = isOwned(b.id);
           const price = BUY_PRICES[b.id] ?? 0;
-          const canBuy = !owned && price > 0 && gold >= price;
+          const isCity = CITY_OWNED_IDS.has(b.id);
+          const canBuy = !owned && !isCity && price > 0 && gold >= price;
 
           return (
             <div
@@ -117,12 +123,16 @@ export function BusinessPanel({
                       <span className="inline-flex rounded-md bg-[#36564b] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e8d38c]">
                         Ваше
                       </span>
+                    ) : isCity ? (
+                      <span className="inline-flex rounded-md bg-[#c5b896] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#4a3f2e]">
+                        Городская собственность
+                      </span>
                     ) : (
                       <span className="inline-flex rounded-md bg-[#e8dbb6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#67563f]">
-                        Городское
+                        Можно купить
                       </span>
                     )}
-                    {!owned && price > 0 && (
+                    {!owned && !isCity && price > 0 && (
                       <span className="text-[11px] font-medium text-[#5c4b38]">
                         {price} зол.
                       </span>
@@ -131,7 +141,7 @@ export function BusinessPanel({
                 </div>
               </div>
 
-              {!owned && price > 0 && (
+              {!owned && !isCity && price > 0 && (
                 <button
                   type="button"
                   onClick={() => handleBuy(b.id, b.name)}
