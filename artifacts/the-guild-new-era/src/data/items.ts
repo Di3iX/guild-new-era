@@ -41,6 +41,14 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
     stackable: true,
     maxStack: 20,
   },
+  reinforced_sword: {
+    id: 'reinforced_sword',
+    name: 'Укреплённый меч',
+    description: 'Более крепкий меч. Доступен с 2 уровня кузницы.',
+    category: 'product',
+    stackable: true,
+    maxStack: 20,
+  },
   wood: {
     id: 'wood',
     name: 'Дерево',
@@ -64,6 +72,14 @@ export const ITEMS: Record<ItemId, ItemDefinition> = {
     category: 'product',
     stackable: true,
     maxStack: 20,
+  },
+  wooden_crate: {
+    id: 'wooden_crate',
+    name: 'Деревянный ящик',
+    description: 'Прочный ящик. Доступен с 2 уровня плотницкой.',
+    category: 'product',
+    stackable: true,
+    maxStack: 50,
   },
 };
 
