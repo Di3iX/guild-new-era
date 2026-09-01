@@ -6,6 +6,7 @@ import { CARPENTRY_CONFIG } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { BusyBar } from './BusyBar';
 import { QtyControl } from './QtyControl';
+import { UpgradeBlock } from './UpgradeBlock';
 
 const CARPENTRY_BUILDING_ID = 'oak-workshop';
 
@@ -165,6 +166,12 @@ export function CarpentryPanel({ gold, onSpendGold, onNotice }: CarpentryPanelPr
           ? 'Ваша плотницкая. Крафт без платы золотом.'
           : 'Столярные изделия из дерева и железа.'}
       </div>
+      <UpgradeBlock
+        buildingId="oak-workshop"
+        gold={gold}
+        onSpendGold={onSpendGold}
+        onNotice={onNotice}
+      />
       {!owned && (
         <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
           Бесплатных действий:{' '}

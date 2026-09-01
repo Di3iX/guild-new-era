@@ -6,6 +6,7 @@ import { FORGE_CONFIG } from '@/data/production';
 import type { ItemId } from '@/types/items';
 import { BusyBar } from './BusyBar';
 import { QtyControl } from './QtyControl';
+import { UpgradeBlock } from './UpgradeBlock';
 
 const FORGE_BUILDING_ID = 'iron-spark';
 
@@ -169,6 +170,12 @@ export function ForgePanel({ gold, onSpendGold, onNotice }: ForgePanelProps) {
           ? 'Ваша кузница. Крафт без платы золотом.'
           : 'Для плавки нужны руда и уголь.'}
       </div>
+      <UpgradeBlock
+        buildingId="iron-spark"
+        gold={gold}
+        onSpendGold={onSpendGold}
+        onNotice={onNotice}
+      />
       {!owned && (
         <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
           Бесплатных действий: <strong>{forgeFreeLeft}</strong> / {FORGE_CONFIG.freeActionsPerDay}
