@@ -14,9 +14,11 @@ const SELL_PRICES: Partial<Record<ItemId, number>> = {
   nails: 4,
   horseshoe: 30,
   simple_sword: 50,
+  reinforced_sword: 90,
   wood: 2,
   coal: 4,
   wooden_shield: 40,
+  wooden_crate: 18,
 };
 
 const BUY_PRICES: Partial<Record<ItemId, number>> = {
@@ -25,9 +27,11 @@ const BUY_PRICES: Partial<Record<ItemId, number>> = {
   nails: 7,
   horseshoe: 45,
   simple_sword: 75,
+  reinforced_sword: 130,
   wood: 4,
   coal: 6,
   wooden_shield: 60,
+  wooden_crate: 28,
 };
 
 const BUYABLE_ITEMS: ItemId[] = [
@@ -38,7 +42,9 @@ const BUYABLE_ITEMS: ItemId[] = [
   'nails',
   'horseshoe',
   'simple_sword',
+  'reinforced_sword',
   'wooden_shield',
+  'wooden_crate',
 ];
 
 function labelItem(id: ItemId): string {
@@ -47,9 +53,11 @@ function labelItem(id: ItemId): string {
   if (id === 'nails') return 'Гвозди';
   if (id === 'horseshoe') return 'Подкова';
   if (id === 'simple_sword') return 'Меч';
+  if (id === 'reinforced_sword') return 'Укреп. меч';
   if (id === 'wood') return 'Дерево';
   if (id === 'coal') return 'Уголь';
   if (id === 'wooden_shield') return 'Щит';
+  if (id === 'wooden_crate') return 'Ящик';
   return id;
 }
 
@@ -175,9 +183,7 @@ export function MarketPanel({
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-xl bg-[#e8dbb6] px-3 py-2.5 text-xs text-[#67563f]">
-        {owned
-          ? 'Ваш рынок. Продажа без городского налога.'
-          : 'Рынок: можно продавать и покупать.'}
+        Рынок города: покупка и продажа товаров.
       </div>
 
       <div className="flex gap-2">
@@ -211,7 +217,6 @@ export function MarketPanel({
         <>
           <div className="rounded-xl border border-[#d1c293] bg-white/50 px-3 py-2 text-xs text-[#5c4b38]">
             Налог: <strong>{Math.round(taxRate * 100)}%</strong>
-            {owned ? ' (ваш рынок)' : ''}
           </div>
 
           {sellableItems.length === 0 ? (
