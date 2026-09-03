@@ -1,3 +1,5 @@
+import { useProfession } from '@/hooks/useProfession';
+
 interface FamilyPanelProps {
   onReturn: () => void;
   onClose: () => void;
@@ -5,6 +7,11 @@ interface FamilyPanelProps {
 }
 
 export function FamilyPanel({ onReturn, onClose, onNotice }: FamilyPanelProps) {
+  const { learned, professions } = useProfession();
+  const professionLabel =
+    learned.length > 0
+      ? learned.map((id) => professions[id].name).join(', ')
+      : 'Без профессии';
   return (
     <section className="pointer-events-auto absolute left-3 right-3 top-20 max-h-[70vh] max-w-[360px] overflow-y-auto rounded-2xl border border-[#d1c293] bg-[#f7efd4]/95 p-4 text-[#35291d] shadow-[var(--shadow-panel)] guild-enter md:left-6 md:top-24">
       <button
@@ -27,7 +34,7 @@ export function FamilyPanel({ onReturn, onClose, onNotice }: FamilyPanelProps) {
       <div className="mt-4 space-y-3">
         <div className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5">
           <div className="text-sm font-bold text-[#3d2b1f]">Марта Вейл</div>
-          <div className="text-[11px] text-[#6b5b4f]">Глава семьи · Ремесленник</div>
+          <div className="text-[11px] text-[#6b5b4f]">Глава семьи · {professionLabel}</div>
         </div>
 
         <div className="rounded-xl border border-dashed border-[#d1c293] bg-white/40 px-3 py-3 text-center text-xs text-[#6c5a42]">

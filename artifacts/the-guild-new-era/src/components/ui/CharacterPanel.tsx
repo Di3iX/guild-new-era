@@ -1,15 +1,43 @@
 import { useInventory } from '@/hooks/useInventory';
+import { useProfession } from '@/hooks/useProfession';
 import { ITEMS } from '@/data/items';
 import type { ItemId } from '@/types/items';
+import type { ProfessionId } from '@/data/professions';
 
 interface CharacterPanelProps {
   label: string;
+  gold: number;
+  onSpendGold: (amount: number) => void;
+  onNotice: (message: string) => void;
   onReturn: () => void;
   onClose: () => void;
 }
 
-export function CharacterPanel({ label, onReturn, onClose }: CharacterPanelProps) {
+export function CharacterPanel({
+  label,
+  gold,
+  onSpendGold,
+  onNotice,
+  onReturn,
+  onClose,
+}: CharacterPanelProps) {
   const { getAmount } = useInventory();
+  const { learned, professions, learn } = useProfession();
+
+  const handleLearn = (id: ProfessionId) => {
+    const def = professions[id];
+    if (learned.includes(id)) {
+      onNotice('Уже изучено');
+      return;
+    }
+    if (gold < def.learnCost) {
+      onNotice('Недостаточно золота');
+      return;
+    }
+    onSpendGold(def.learnCost);
+    learn(id);
+    onNotice('Изучено: ' + def.name);
+  };
 
   const entries = (Object.keys(ITEMS) as ItemId[])
     .map((id) => ({
@@ -65,6 +93,52 @@ export function CharacterPanel({ label, onReturn, onClose }: CharacterPanelProps
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Professions section */}
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-[#79684d]">
+          Профессии
+        </div>
+        <p className="mb-2 text-[11px] text-[#6b5b4f]">
+          Профессия даёт право владеть соответствующей мастерской.
+        </p>
+
+        <ul className="space-y-1.5">
+          {(Object.values(professions)).map((def) => {
+            const isLearned = learned.includes(def.id);
+            return (
+              <li
+                key={def.id}
+                className="rounded-xl border border-[#e0d5c3] bg-white/60 px-3 py-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold text-[#3d2b1f]">{def.name}</div>
+                    <div className="text-[11px] text-[#6b5b4f]">{def.description}</div>
+                  </div>
+                  {isLearned && (
+                    <span className="shrink-0 rounded-md bg-[#36564b] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e8d38c]">
+                      Изучено
+                    </span>
+                  )}
+                </div>
+                {!isLearned && (
+                  <button
+                    type="button"
+                    onClick={() => handleLearn(def.id)}
+                    disabled={gold < def.learnCost}
+                    className="mt-2 w-full rounded-xl bg-[#36564b] px-3 py-2 text-xs font-bold text-[#f5edcf] disabled:opacity-45"
+                  >
+                    {gold < def.learnCost
+                      ? 'Недостаточно золота'
+                      : 'Изучить за ' + def.learnCost + ' зол.'}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <button
