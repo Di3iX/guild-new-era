@@ -3,6 +3,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { useOwnership } from '@/hooks/useOwnership';
 import { MARKET_TAX_RATE } from '@/data/production';
 import { SELL_PRICES, BUY_PRICES } from '@/data/prices';
+import { getProcessingAdvice } from '@/lib/processingAdvice';
 import type { ItemId } from '@/types/items';
 import { ITEMS } from '@/data/items';
 import { QtyControl } from './QtyControl';
@@ -213,6 +214,7 @@ export function MarketPanel({
                   const unitPrice = SELL_PRICES[itemId] ?? 0;
                   const netOne = unitPrice - Math.floor(unitPrice * taxRate);
                   const def = ITEMS[itemId];
+                  const advice = getProcessingAdvice(itemId);
 
                   return (
                     <div
@@ -225,6 +227,11 @@ export function MarketPanel({
                       <div className="text-[11px] text-[#6b5b4f]">
                         У тебя: {amount} · цена {unitPrice} · за 1 шт. {netOne} зол.
                       </div>
+                      {advice && (
+                        <div className="mt-1 rounded-md bg-[#e8dbb6]/70 px-2 py-1 text-[10px] font-medium text-[#67563f]">
+                          💡 Выгоднее переработать в «{advice.outputName}»: +{advice.gain} зол./ед.
+                        </div>
+                      )}
                       <div className="mt-2 flex gap-2">
                         <button
                           type="button"
