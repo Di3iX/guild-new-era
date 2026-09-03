@@ -1,4 +1,6 @@
 import { useInventory } from '@/hooks/useInventory';
+import { useFamily } from '@/hooks/useFamily';
+import { useProfession } from '@/hooks/useProfession';
 import { ITEMS } from '@/data/items';
 import type { ItemId } from '@/types/items';
 
@@ -8,6 +10,12 @@ interface HousePanelProps {
 
 export function HousePanel({ onNotice }: HousePanelProps) {
   const { getAmount } = useInventory();
+  const { headName, spouseName, children } = useFamily();
+  const { learned, professions } = useProfession();
+  const professionLabel =
+    learned.length > 0
+      ? learned.map((id) => professions[id].name).join(', ')
+      : 'Без профессии';
 
   const entries = (Object.keys(ITEMS) as ItemId[])
     .map((id) => ({
@@ -23,9 +31,9 @@ export function HousePanel({ onNotice }: HousePanelProps) {
         <div className="font-mono text-[9px] uppercase tracking-[.18em] text-[#9b7440]">
           Профиль
         </div>
-        <div className="mt-1 text-sm font-bold text-[#3d2b1f]">Марта Вейл</div>
+        <div className="mt-1 text-sm font-bold text-[#3d2b1f]">{headName}</div>
         <div className="text-[11px] text-[#6b5b4f]">
-          Профессия: <strong>Ремесленник</strong>
+          Профессия: <strong>{professionLabel}</strong>
         </div>
         <div className="mt-1 text-[11px] text-[#79684d]">
           Позже здесь появятся навыки и опыт профессии.
@@ -64,14 +72,16 @@ export function HousePanel({ onNotice }: HousePanelProps) {
           Семья
         </div>
         <p className="mt-1 text-xs text-[#6b5b4f]">
-          Пока вы одна. Брак, дети и родственники появятся позже.
+          {spouseName
+            ? 'Супруг(а): ' + spouseName + '. Детей: ' + children.length + '.'
+            : 'Пока вы одна. Найди партию во вкладке «Семья».'}
         </p>
         <button
           type="button"
-          onClick={() => onNotice('Семья — в следующих обновлениях')}
+          onClick={() => onNotice('Открой вкладку «Семья» внизу экрана')}
           className="mt-2 w-full rounded-lg border border-[#d1c293] bg-[#e8dbb6]/60 px-3 py-2 text-xs font-bold text-[#5c4b38]"
         >
-          Пока недоступно
+          Открыть раздел «Семья»
         </button>
       </div>
 
