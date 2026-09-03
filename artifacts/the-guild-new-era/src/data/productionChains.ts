@@ -72,11 +72,25 @@ export const RESOURCE_CHAINS: Record<string, ChainNode> = {
     producedAt: ['iron-spark'],
     sourceAction: 'simple_sword',
   },
+  reinforced_sword: {
+    itemId: 'reinforced_sword',
+    name: 'Укреплённый меч',
+    tier: 2,
+    producedAt: ['iron-spark'],
+    sourceAction: 'reinforced_sword',
+  },
   wooden_shield: {
     itemId: 'wooden_shield',
     name: 'Деревянный щит',
     tier: 2,
     producedAt: ['oak-workshop'],
     sourceAction: 'wooden_shield',
+  },
+  wooden_crate: {
+    itemId: 'wooden_crate',
+    name: 'Деревянный ящик',
+    tier: 2,
+    producedAt: ['oak-workshop'],
+    sourceAction: 'wooden_crate',
   },
 };
