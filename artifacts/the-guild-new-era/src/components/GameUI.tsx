@@ -94,6 +94,9 @@ export function GameUI({
       {activeTab === 'character' && (
         <CharacterPanel
           label="Персонаж"
+          gold={gold}
+          onSpendGold={onSpendGold}
+          onNotice={onNotice}
           onReturn={() => onTabChange('city')}
           onClose={() => onTabChange('city')}
         />
