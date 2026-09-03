@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { useOwnership } from '@/hooks/useOwnership';
+import { useMarketPrices } from '@/hooks/useMarketPrices';
 import { MARKET_TAX_RATE } from '@/data/production';
-import { SELL_PRICES, BUY_PRICES } from '@/data/prices';
+import { SELL_PRICES } from '@/data/prices';
 import { getProcessingAdvice } from '@/lib/processingAdvice';
 import type { ItemId } from '@/types/items';
 import { ITEMS } from '@/data/items';
@@ -52,6 +54,8 @@ export function MarketPanel({
 }: MarketPanelProps) {
   const { add, remove, getAmount, items } = useInventory();
   const { isOwned } = useOwnership();
+  const { getSellPrice, getBuyPrice, getTrend, registerSale, registerPurchase } =
+    useMarketPrices();
   const owned = isOwned(MARKET_BUILDING_ID);
   const taxRate = owned ? 0 : MARKET_TAX_RATE;
 
@@ -64,7 +68,7 @@ export function MarketPanel({
 
   const totalSellNet = sellableItems.reduce((sum, id) => {
     const amount = getAmount(id);
-    const unit = SELL_PRICES[id] ?? 0;
+    const unit = getSellPrice(id);
     const gross = unit * amount;
     const tax = Math.floor(gross * taxRate);
     return sum + (gross - tax);
@@ -78,7 +82,7 @@ export function MarketPanel({
       return;
     }
 
-    const unitPrice = SELL_PRICES[itemId] ?? 0;
+    const unitPrice = getSellPrice(itemId);
     if (unitPrice <= 0) {
       onNotice('Этот товар сейчас не принимают');
       return;
@@ -90,6 +94,7 @@ export function MarketPanel({
 
     remove(itemId, count);
     onAddGold(net);
+    registerSale(itemId, count);
     onNotice(
       tax > 0
         ? 'Продано ' + count + ' шт. за ' + net + ' зол. (налог: ' + tax + ')'
@@ -109,10 +114,11 @@ export function MarketPanel({
     sellableItems.forEach((id) => {
       const amount = getAmount(id);
       if (amount <= 0) return;
-      const unit = SELL_PRICES[id] ?? 0;
+      const unit = getSellPrice(id);
       const gross = unit * amount;
       const tax = Math.floor(gross * taxRate);
       remove(id, amount);
+      registerSale(id, amount);
       totalNet += gross - tax;
       totalTax += tax;
     });
@@ -126,13 +132,13 @@ export function MarketPanel({
   };
 
   const getMaxBuyQty = (itemId: ItemId): number => {
-    const price = BUY_PRICES[itemId] ?? 0;
+    const price = getBuyPrice(itemId);
     if (price <= 0) return 0;
     return Math.floor(gold / price);
   };
 
   const handleBuy = (itemId: ItemId) => {
-    const price = BUY_PRICES[itemId] ?? 0;
+    const price = getBuyPrice(itemId);
     if (price <= 0) return;
 
     const maxQty = getMaxBuyQty(itemId);
@@ -152,6 +158,7 @@ export function MarketPanel({
 
     onSpendGold(total);
     add(itemId, qty);
+    registerPurchase(itemId, qty);
     onNotice('Куплено: ' + qty + ' x ' + (ITEMS[itemId]?.name ?? labelItem(itemId)));
     setBuyQty((prev) => ({ ...prev, [itemId]: 1 }));
   };
@@ -211,7 +218,8 @@ export function MarketPanel({
               <div className="space-y-2">
                 {sellableItems.map((itemId) => {
                   const amount = getAmount(itemId);
-                  const unitPrice = SELL_PRICES[itemId] ?? 0;
+                  const unitPrice = getSellPrice(itemId);
+                  const trend = getTrend(itemId);
                   const netOne = unitPrice - Math.floor(unitPrice * taxRate);
                   const def = ITEMS[itemId];
                   const advice = getProcessingAdvice(itemId);
@@ -221,8 +229,10 @@ export function MarketPanel({
                       key={itemId}
                       className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
                     >
-                      <div className="text-sm font-bold text-[#3d2b1f]">
+                      <div className="flex items-center gap-1.5 text-sm font-bold text-[#3d2b1f]">
                         {def?.name ?? labelItem(itemId)}
+                        {trend === 'up' && <TrendingUp size={13} className="text-[#36564b]" />}
+                        {trend === 'down' && <TrendingDown size={13} className="text-[#a84a3f]" />}
                       </div>
                       <div className="text-[11px] text-[#6b5b4f]">
                         У тебя: {amount} · цена {unitPrice} · за 1 шт. {netOne} зол.
@@ -260,7 +270,8 @@ export function MarketPanel({
       {tab === 'buy' && (
         <div className="space-y-2">
           {BUYABLE_ITEMS.map((itemId) => {
-            const price = BUY_PRICES[itemId] ?? 0;
+            const price = getBuyPrice(itemId);
+            const trend = getTrend(itemId);
             const maxQty = getMaxBuyQty(itemId);
             const raw = buyQty[itemId] ?? 1;
             const qty = Math.min(Math.max(1, raw), Math.max(1, maxQty));
@@ -273,8 +284,10 @@ export function MarketPanel({
                 className="rounded-xl border border-[#d1c293] bg-white/60 px-3 py-2.5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#3d2b1f]">
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-[#3d2b1f]">
                     {def?.name ?? labelItem(itemId)}
+                    {trend === 'up' && <TrendingUp size={13} className="text-[#a84a3f]" />}
+                    {trend === 'down' && <TrendingDown size={13} className="text-[#36564b]" />}
                   </span>
                   <span className="text-[11px] text-[#79684d]">{price} зол. / шт.</span>
                 </div>
