@@ -2,37 +2,12 @@ import { useState } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { useOwnership } from '@/hooks/useOwnership';
 import { MARKET_TAX_RATE } from '@/data/production';
+import { SELL_PRICES, BUY_PRICES } from '@/data/prices';
 import type { ItemId } from '@/types/items';
 import { ITEMS } from '@/data/items';
 import { QtyControl } from './QtyControl';
 
 const MARKET_BUILDING_ID = 'river-market';
-
-const SELL_PRICES: Partial<Record<ItemId, number>> = {
-  iron_ore: 3,
-  iron: 12,
-  nails: 4,
-  horseshoe: 30,
-  simple_sword: 50,
-  reinforced_sword: 90,
-  wood: 2,
-  coal: 4,
-  wooden_shield: 40,
-  wooden_crate: 18,
-};
-
-const BUY_PRICES: Partial<Record<ItemId, number>> = {
-  iron_ore: 5,
-  iron: 18,
-  nails: 7,
-  horseshoe: 45,
-  simple_sword: 75,
-  reinforced_sword: 130,
-  wood: 4,
-  coal: 6,
-  wooden_shield: 60,
-  wooden_crate: 28,
-};
 
 const BUYABLE_ITEMS: ItemId[] = [
   'iron_ore',
