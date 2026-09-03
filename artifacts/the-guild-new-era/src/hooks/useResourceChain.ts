@@ -9,8 +9,18 @@ export interface ChainStep {
   node: ChainNode;
   /** название рецепта, которым получен этот шаг (undefined для сырья) */
   actionName?: string;
+  /** сколько единиц предыдущего шага уходит на этот (undefined для сырья) */
+  inputAmount?: number;
+  /** сколько единиц этого шага получается за один крафт */
+  outputAmount?: number;
+  /** плата в золоте за один крафт (action.cost), undefined для сырья */
+  craftFee?: number;
   /** доп. ингредиент рецепта (например, уголь для переплавки), если есть */
-  extraItemId?: string;
+  extra?: {
+    itemId: string;
+    name: string;
+    amount: number;
+  };
 }
 
 /**
@@ -31,10 +41,21 @@ export function useResourceChain(itemId: string): ChainStep[] | null {
         ? actionsById[current.sourceAction as keyof typeof actionsById]
         : undefined;
 
+      const extra = action && 'extra' in action && action.extra
+        ? {
+            itemId: action.extra.itemId,
+            name: RESOURCE_CHAINS[action.extra.itemId]?.name ?? action.extra.itemId,
+            amount: action.extra.amount,
+          }
+        : undefined;
+
       steps.unshift({
         node: current,
         actionName: action?.name,
-        extraItemId: action && 'extra' in action ? action.extra?.itemId : undefined,
+        inputAmount: action?.input.amount,
+        outputAmount: action?.output.amount,
+        craftFee: action?.cost,
+        extra,
       });
 
       if (!action) break;
@@ -44,3 +65,4 @@ export function useResourceChain(itemId: string): ChainStep[] | null {
     return steps;
   }, [itemId]);
 }
+
