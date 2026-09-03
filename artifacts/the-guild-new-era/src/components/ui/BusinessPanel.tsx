@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/cityData';
 import { useOwnership } from '@/hooks/useOwnership';
+import { useProfession } from '@/hooks/useProfession';
+import { getRequiredProfession } from '@/data/professions';
 
 const icons = {
   house: House,
@@ -52,6 +54,7 @@ export function BusinessPanel({
   onClose,
 }: BusinessPanelProps) {
   const { isOwned, buy } = useOwnership();
+  const { canOwnBuilding } = useProfession();
   const businesses = BUILDINGS.filter((b) => b.type !== 'house');
 
   const handleBuy = (id: string, name: string) => {
@@ -66,6 +69,11 @@ export function BusinessPanel({
     }
     if (isOwned(id)) {
       onNotice('Уже ваше');
+      return;
+    }
+    if (!canOwnBuilding(id)) {
+      const required = getRequiredProfession(id);
+      onNotice('Нужна профессия «' + (required?.name ?? '?') + '»');
       return;
     }
     if (gold < price) {
@@ -93,7 +101,7 @@ export function BusinessPanel({
       </div>
       <h2 className="mt-1 pr-5 font-serif text-lg font-bold">Бизнес</h2>
       <p className="mt-1 text-xs text-[#6b5b4f]">
-        Мастерские можно купить. Шахта, лес и рынок — городские.
+        Мастерские требуют профессию для покупки. Шахта, лес и рынок — городские.
       </p>
 
       <div className="mt-4 space-y-2">
@@ -102,7 +110,9 @@ export function BusinessPanel({
           const owned = isOwned(b.id);
           const price = BUY_PRICES[b.id] ?? 0;
           const isCity = CITY_OWNED_IDS.has(b.id);
-          const canBuy = !owned && !isCity && price > 0 && gold >= price;
+          const requiredProfession = getRequiredProfession(b.id);
+          const professionOk = canOwnBuilding(b.id);
+          const canBuy = !owned && !isCity && price > 0 && professionOk && gold >= price;
 
           return (
             <div
@@ -127,6 +137,10 @@ export function BusinessPanel({
                       <span className="inline-flex rounded-md bg-[#c5b896] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#4a3f2e]">
                         Городская собственность
                       </span>
+                    ) : !professionOk ? (
+                      <span className="inline-flex rounded-md bg-[#a84a3f]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#a84a3f]">
+                        Нужна профессия «{requiredProfession?.name}»
+                      </span>
                     ) : (
                       <span className="inline-flex rounded-md bg-[#e8dbb6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#67563f]">
                         Можно купить
@@ -141,7 +155,7 @@ export function BusinessPanel({
                 </div>
               </div>
 
-              {!owned && !isCity && price > 0 && (
+              {!owned && !isCity && price > 0 && professionOk && (
                 <button
                   type="button"
                   onClick={() => handleBuy(b.id, b.name)}
@@ -150,6 +164,12 @@ export function BusinessPanel({
                 >
                   {gold < price ? 'Недостаточно золота' : 'Купить за ' + price + ' зол.'}
                 </button>
+              )}
+
+              {!owned && !isCity && price > 0 && !professionOk && (
+                <div className="mt-2 rounded-lg bg-[#f0e6c8]/70 px-2 py-1.5 text-center text-[11px] text-[#6c5a42]">
+                  Изучи профессию «{requiredProfession?.name}» на вкладке «Персонаж»
+                </div>
               )}
             </div>
           );
