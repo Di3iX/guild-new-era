@@ -6,6 +6,7 @@ import { BusinessPanel } from '@/components/ui/BusinessPanel';
 import { MarketTabPanel } from '@/components/ui/MarketTabPanel';
 import { FamilyPanel } from '@/components/ui/FamilyPanel';
 import { TopBar } from '@/components/ui/TopBar';
+import { useFamily } from '@/hooks/useFamily';
 import type { BuildingData, MapPoint } from '@/types/game';
 import type { NavKey } from '@/types/navigation';
 
@@ -46,10 +47,11 @@ export function GameUI({
   onAddGold,
   onNotice,
 }: GameUIProps) {
+  const { headName } = useFamily();
   return (
     <div className="pointer-events-none absolute inset-0 z-10 text-[#35291d]">
       <TopBar
-        name="Марта Вейл"
+        name={headName}
         location="Южные ворота"
         gold={gold}
         health={health}
@@ -125,6 +127,8 @@ export function GameUI({
 
       {activeTab === 'family' && (
         <FamilyPanel
+          gold={gold}
+          onSpendGold={onSpendGold}
           onNotice={onNotice}
           onReturn={() => onTabChange('city')}
           onClose={() => onTabChange('city')}
